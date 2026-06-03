@@ -18,7 +18,7 @@
     --shadow-soft:0 2px 12px rgba(0,0,0,0.05);
   }
   *{margin:0;padding:0;box-sizing:border-box;}
-  body{font-family:'Outfit',sans-serif;background:linear-gradient(140deg,#d6f4ff 0%,#eef3ff 45%,#e4fdf0 75%,#fdf9e4 100%) fixed;color:var(--text);min-height:100vh;}
+  body{font-family:'Outfit',sans-serif;background:linear-gradient(140deg,#eafaff 0%,#eef3ff 45%,#eafff6 100%) fixed;color:var(--text);min-height:100vh;}
 
   /* ══ LOGO SVG ══ */
   .logo-svg{display:block;}
@@ -38,7 +38,10 @@
   .login-foot b{color:var(--text);font-weight:700;}
 
   /* ══ HUB ══ */
-  #hub{display:none;min-height:100vh;flex-direction:column;}
+  #hub{display:none;min-height:100vh;flex-direction:column;position:relative;overflow:hidden;}
+  .hub-blob{position:fixed;border-radius:50%;filter:blur(60px);opacity:0.5;z-index:0;pointer-events:none;}
+  #hub .topbar{position:relative;z-index:2;}
+  #hub .hub-body{position:relative;z-index:1;}
   .topbar{background:#fff;height:84px;display:flex;align-items:center;justify-content:space-between;padding:0 48px;box-shadow:0 1px 0 rgba(0,0,0,0.04);position:relative;}
   .topbar::after{content:'';position:absolute;left:48px;top:84px;width:2px;height:54px;background:linear-gradient(#0BC3FF,transparent);border-radius:2px;}
   .tb-brand{display:flex;align-items:center;gap:12px;}
@@ -54,7 +57,7 @@
 
   .hub-body{flex:1;max-width:1180px;width:100%;margin:0 auto;padding:54px 48px 80px;}
   @media(max-width:768px){.hub-body{padding:34px 20px 60px;}}
-  .hub-hello{font-size:38px;font-weight:800;letter-spacing:-1px;line-height:1.1;}
+  .hub-hello{font-size:38px;font-weight:600;letter-spacing:-1px;line-height:1.1;}
   .hub-hello .nm{background:linear-gradient(100deg,#0dbfeb 0%,#16a89f 45%,#9fda60 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
   .hub-sub{font-size:16px;color:var(--text-muted);margin-top:6px;}
   @media(max-width:768px){.hub-hello{font-size:28px;}.hub-sub{font-size:14px;}}
@@ -165,6 +168,8 @@
 
 <!-- ════ HUB ════ -->
 <div id="hub">
+  <div class="hub-blob" style="width:460px;height:460px;background:radial-gradient(#0BC3FF,#18AE97);top:-160px;left:-120px;"></div>
+  <div class="hub-blob" style="width:380px;height:380px;background:radial-gradient(#9FDA60,#F5AD21);bottom:-120px;right:-90px;opacity:0.32;"></div>
   <div class="topbar">
     <div class="tb-brand">
       <div class="tb-logo" id="tb-logo"></div>

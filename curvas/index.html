@@ -91,8 +91,8 @@
   @media(max-width:768px){.hdr-circle{width:42px;height:42px;}.hdr-circle svg{width:18px;height:18px;}}
 
   /* ── MAIN ── */
-  .main{padding:36px 48px 140px;display:flex;flex-direction:column;gap:28px;min-width:0;background:transparent;max-width:1400px;margin:0 auto;}
-  @media(max-width:768px){.main{padding:20px 16px calc(120px + env(safe-area-inset-bottom));gap:22px;}}
+  .main{padding:36px 48px 160px;display:flex;flex-direction:column;gap:28px;min-width:0;background:transparent;max-width:1400px;margin:0 auto;}
+  @media(max-width:768px){.main{padding:20px 16px calc(140px + env(safe-area-inset-bottom));gap:22px;}}
 
   .screen{display:none;flex-direction:column;gap:24px;}
   .screen.active{display:flex;animation:fadeIn 0.22s ease;}
@@ -273,10 +273,13 @@
   .curve-dl svg{width:17px;height:17px;stroke-width:2;}
   .curve-dl:hover{background:#e4ece9;color:var(--teal,#18AE97);transform:translateY(-1px);}
   .curve-dl:active{transform:scale(0.94);}
+  .ficha-detail-inner{display:flex;flex-direction:column;gap:32px;}
+  .hist-section{display:flex;flex-direction:column;gap:14px;}
+  .hist-section-title{font-size:18px;font-weight:700;color:var(--text);}
   .curve-canvas-box{position:relative;height:300px;width:100%;}
   .curves-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
   @media(max-width:900px){.curves-grid{grid-template-columns:1fr;}}
-  @media(max-width:768px){.curve-wrap{padding:18px 14px;border-radius:20px;}.curve-canvas-box{height:260px;}}
+  @media(max-width:768px){.ficha-detail-inner{gap:24px;}.curve-wrap{padding:18px 14px;border-radius:20px;}.curve-canvas-box{height:260px;}.hist-section-title{font-size:16px;}}
 
   .hist-wrap{background:var(--surface);border-radius:24px;box-shadow:var(--shadow);overflow:hidden;}
   .hist-head{display:grid;grid-template-columns:1.1fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr 76px;gap:10px;padding:14px 22px;background:#f6faf9;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.6px;}
@@ -459,39 +462,43 @@
 
       <!-- Ficha detalle -->
       <div id="ficha-detail-view" style="display:none;">
-        <div class="page-header">
-          <div class="ficha-head">
-            <div class="avatar avatar-lg" id="fd-avatar">—</div>
-            <div class="ficha-info">
-              <h3 id="fd-name">—</h3>
-              <p id="fd-meta">—</p>
+        <div class="ficha-detail-inner">
+          <div class="page-header">
+            <div class="ficha-head">
+              <div class="avatar avatar-lg" id="fd-avatar">—</div>
+              <div class="ficha-info">
+                <h3 id="fd-name">—</h3>
+                <p id="fd-meta">—</p>
+              </div>
+            </div>
+            <div class="hdr-actions">
+              <button class="hdr-circle hdr-circle-primary" onclick="openMedicionModal()" title="Nueva medición">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+              <button class="hdr-circle" onclick="backToFichas()" title="Volver">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+              </button>
             </div>
           </div>
-          <div class="hdr-actions">
-            <button class="hdr-circle hdr-circle-primary" onclick="openMedicionModal()" title="Nueva medición">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            </button>
-            <button class="hdr-circle" onclick="backToFichas()" title="Volver">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-            </button>
-          </div>
-        </div>
 
-        <div class="curves-grid">
-          <div class="curve-wrap">
-            <div class="curve-head"><div class="curve-title">Talla / Edad</div><button class="curve-dl" onclick="descargarCurva('curve-talla','Talla-Edad')" title="Descargar imagen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button></div>
-            <div class="curve-canvas-box"><canvas id="curve-talla"></canvas></div>
+          <div class="curves-grid">
+            <div class="curve-wrap">
+              <div class="curve-head"><div class="curve-title">Talla / Edad</div><button class="curve-dl" onclick="descargarCurva('curve-talla','Talla-Edad')" title="Descargar imagen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button></div>
+              <div class="curve-canvas-box"><canvas id="curve-talla"></canvas></div>
+            </div>
+            <div class="curve-wrap">
+              <div class="curve-head"><div class="curve-title">Peso / Edad</div><button class="curve-dl" onclick="descargarCurva('curve-peso','Peso-Edad')" title="Descargar imagen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button></div>
+              <div class="curve-canvas-box"><canvas id="curve-peso"></canvas></div>
+            </div>
           </div>
-          <div class="curve-wrap">
-            <div class="curve-head"><div class="curve-title">Peso / Edad</div><button class="curve-dl" onclick="descargarCurva('curve-peso','Peso-Edad')" title="Descargar imagen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button></div>
-            <div class="curve-canvas-box"><canvas id="curve-peso"></canvas></div>
-          </div>
-        </div>
 
-        <div style="font-size:16px;font-weight:700;color:var(--text);margin-top:4px;">Historial de mediciones</div>
-        <div class="hist-wrap">
-          <div class="hist-head"><div>Fecha</div><div>Edad</div><div>Peso</div><div>Talla</div><div>Z T/E</div><div>Z P/E</div><div></div></div>
-          <div id="hist-body"></div>
+          <div class="hist-section">
+            <div class="hist-section-title">Historial de mediciones</div>
+            <div class="hist-wrap">
+              <div class="hist-head"><div>Fecha</div><div>Edad</div><div>Peso</div><div>Talla</div><div>Z T/E</div><div>Z P/E</div><div></div></div>
+              <div id="hist-body"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -91,8 +91,8 @@
   @media(max-width:768px){.hdr-circle{width:42px;height:42px;}.hdr-circle svg{width:18px;height:18px;}}
 
   /* ── MAIN ── */
-  .main{padding:36px 48px 120px;display:flex;flex-direction:column;gap:28px;min-width:0;background:transparent;max-width:1400px;margin:0 auto;}
-  @media(max-width:768px){.main{padding:20px 16px calc(100px + env(safe-area-inset-bottom));gap:22px;}}
+  .main{padding:36px 48px 140px;display:flex;flex-direction:column;gap:28px;min-width:0;background:transparent;max-width:1400px;margin:0 auto;}
+  @media(max-width:768px){.main{padding:20px 16px calc(120px + env(safe-area-inset-bottom));gap:22px;}}
 
   .screen{display:none;flex-direction:column;gap:24px;}
   .screen.active{display:flex;animation:fadeIn 0.22s ease;}
@@ -171,6 +171,10 @@
   .filter-opt:hover{background:var(--surface-hover);}
   .filter-opt input{margin:0;accent-color:#18AE97;width:16px;height:16px;flex-shrink:0;}
   .filter-search{width:100%;background:var(--surface-hover);border:none;border-radius:12px;padding:11px 16px;color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;outline:none;transition:box-shadow 0.15s;margin-bottom:4px;}
+  .drawer-search-wrap{position:relative;padding:18px 24px 6px;}
+  .drawer-name-search{width:100%;background:var(--surface-hover);border:none;border-radius:100px;padding:13px 44px 13px 18px;color:var(--text);font-family:'Outfit',sans-serif;font-size:15px;outline:none;transition:box-shadow 0.15s;}
+  .drawer-name-search:focus{box-shadow:0 0 0 3px rgba(24,174,151,0.18);}
+  .drawer-search-wrap svg{position:absolute;right:40px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--text-dim);pointer-events:none;}
   .filter-search:focus{box-shadow:0 0 0 3px rgba(24,174,151,0.18);}
   .filter-drawer-foot{padding:16px 24px calc(16px + env(safe-area-inset-bottom));border-top:1px solid var(--border);display:flex;gap:10px;}
   .filter-drawer-foot .btn{flex:1;}
@@ -443,14 +447,14 @@
             <div class="page-title">Fichas</div>
             <div class="page-sub">Selecciona un infante para ver sus curvas de crecimiento</div>
           </div>
-        </div>
-        <div class="filters-row" style="margin:8px 0 4px;">
-          <div class="search-wrap">
-            <input class="search-input" id="ficha-search" placeholder="Buscar por nombre..." oninput="renderFichasList()">
-            <span class="search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+          <div class="hdr-actions">
+            <button class="hdr-circle" onclick="openDrawer('fichas')" title="Filtrar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              <span class="filter-badge" id="badge-fichas" style="display:none;">0</span>
+            </button>
           </div>
         </div>
-        <div class="tbl-wrap" id="fichas-tbl"></div>
+        <div class="tbl-wrap" id="fichas-tbl" style="margin-top:18px;"></div>
       </div>
 
       <!-- Ficha detalle -->
@@ -509,13 +513,7 @@
           </button>
         </div>
       </div>
-      <div class="filters-row">
-        <div class="search-wrap">
-          <input class="search-input" id="inf-search" placeholder="Buscar por nombre..." oninput="renderInfantes()">
-          <span class="search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-        </div>
-      </div>
-      <div class="tbl-wrap" id="infantes-tbl"></div>
+      <div class="tbl-wrap" id="infantes-tbl" style="margin-top:18px;"></div>
     </div>
 
   </div>
@@ -659,7 +657,7 @@ const CACHE_TTL   = 5 * 60 * 1000;
 
 let currentUser=null, ninos=[], mediciones=[], comunidades=[], usuarios=[];
 let currentScreen='alertas', currentFicha=null, charts={}, confirmCb=null, chartLibLoading=null;
-let activeFilters = { infantes:{comunidad:[],sexo:[],estado:[]}, alertas:{comunidad:[],tipo:[]} };
+let activeFilters = { infantes:{comunidad:[],sexo:[],estado:[],nombre:''}, alertas:{comunidad:[],tipo:[]}, fichas:{comunidad:[],sexo:[],estado:[],nombre:''} };
 let drawerContext='infantes';
 
 // ════════════ OMS LMS — TALLA/EDAD (0-60m) ════════════
@@ -868,21 +866,25 @@ function renderAlertas(){
 
 // ─── FICHAS LIST ───
 function renderFichasList(){
-  const q=(document.getElementById('ficha-search').value||'').toLowerCase();
+  const f=activeFilters.fichas;
+  const q=(f.nombre||'').toLowerCase();
   let list=ninos.filter(n=>n.Activo!==false && n.Activo!=='FALSE');
   if(q) list=list.filter(n=>(n.Nombres||'').toLowerCase().includes(q));
+  if(f.comunidad.length) list=list.filter(n=>f.comunidad.includes(n.Comunidad));
+  if(f.sexo.length) list=list.filter(n=>f.sexo.includes(n.Sexo));
+  if(f.estado.length) list=list.filter(n=>f.estado.includes(estadoNino(n).estado));
   list.sort((a,b)=>(a.Nombres||'').localeCompare(b.Nombres||''));
   const tbl=document.getElementById('fichas-tbl');
-  if(!list.length){tbl.innerHTML='<div class="empty"><div class="empty-icon">🔍</div><div class="empty-title">Sin resultados</div></div>';return;}
+  if(!list.length){tbl.innerHTML='<div class="empty"><div class="empty-icon">🔍</div><div class="empty-title">Sin resultados</div><div class="empty-sub">Ajusta los filtros para ver infantes</div></div>';return;}
   tbl.innerHTML='<div class="tbl-head"><div>Nombre</div><div>Comunidad</div><div>Edad</div><div>Estado</div><div></div></div>'+
     list.map(n=>rowNino(n,true)).join('');
 }
 
 // ─── INFANTES ───
 function renderInfantes(){
-  const q=(document.getElementById('inf-search').value||'').toLowerCase();
-  let list=ninos.filter(n=>n.Activo!==false && n.Activo!=='FALSE');
   const f=activeFilters.infantes;
+  const q=(f.nombre||'').toLowerCase();
+  let list=ninos.filter(n=>n.Activo!==false && n.Activo!=='FALSE');
   if(q) list=list.filter(n=>(n.Nombres||'').toLowerCase().includes(q));
   if(f.comunidad.length) list=list.filter(n=>f.comunidad.includes(n.Comunidad));
   if(f.sexo.length) list=list.filter(n=>f.sexo.includes(n.Sexo));
@@ -1243,15 +1245,20 @@ async function saveMedicion(){
 // ════════════ DRAWER FILTROS ════════════
 function openDrawer(ctx){
   drawerContext=ctx;
-  const title=ctx==='alertas'?'Filtrar alertas':'Filtrar infantes';
-  document.getElementById('drawer-title').textContent=title;
+  const titles={alertas:'Filtrar alertas',infantes:'Filtrar infantes',fichas:'Filtrar fichas'};
+  document.getElementById('drawer-title').textContent=titles[ctx]||'Filtros';
   const body=document.getElementById('drawer-body');
   const coms=[...new Set(ninos.map(n=>n.Comunidad).filter(Boolean))].sort();
   const f=activeFilters[ctx];
   let html='';
+  // Buscador por nombre (solo infantes y fichas)
+  if(ctx==='infantes'||ctx==='fichas'){
+    const val=(f.nombre||'').replace(/"/g,'&quot;');
+    html+=`<div class="drawer-search-wrap"><input class="drawer-name-search" id="drawer-name-${ctx}" placeholder="Buscar por nombre..." value="${val}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>`;
+  }
   // Comunidad
   html+=drawerSection('Comunidad', coms.map(c=>filterOpt('comunidad',c,c,f.comunidad.includes(c))), coms.length>6);
-  if(ctx==='infantes'){
+  if(ctx==='infantes'||ctx==='fichas'){
     html+=drawerSection('Sexo',[filterOpt('sexo','M','Niño',f.sexo.includes('M')),filterOpt('sexo','F','Niña',f.sexo.includes('F'))]);
     html+=drawerSection('Estado nutricional',[
       filterOpt('estado','sev','Severo',f.estado.includes('sev')),
@@ -1282,22 +1289,37 @@ function filterDrawerOpts(inp){
   inp.parentElement.querySelectorAll('.filter-opt').forEach(o=>{o.style.display=o.dataset.label.includes(q)?'flex':'none';});
 }
 function applyFilters(){
-  const f=activeFilters[drawerContext];
-  Object.keys(f).forEach(k=>f[k]=[]);
+  const ctx=drawerContext, f=activeFilters[ctx];
+  // resetear arrays
+  Object.keys(f).forEach(k=>{ if(Array.isArray(f[k])) f[k]=[]; else f[k]=''; });
   document.querySelectorAll('#drawer-body input[type=checkbox]:checked').forEach(c=>{f[c.dataset.group].push(c.value);});
+  const ns=document.getElementById('drawer-name-'+ctx);
+  if(ns) f.nombre=ns.value.trim();
   updateBadges(); closeDrawer();
-  drawerContext==='alertas'?renderAlertas():renderInfantes();
+  refreshContext(ctx);
 }
 function clearFilters(){
-  const f=activeFilters[drawerContext];
-  Object.keys(f).forEach(k=>f[k]=[]);
+  const ctx=drawerContext, f=activeFilters[ctx];
+  Object.keys(f).forEach(k=>{ if(Array.isArray(f[k])) f[k]=[]; else f[k]=''; });
   document.querySelectorAll('#drawer-body input[type=checkbox]').forEach(c=>c.checked=false);
+  const ns=document.getElementById('drawer-name-'+ctx); if(ns) ns.value='';
   updateBadges();
-  drawerContext==='alertas'?renderAlertas():renderInfantes();
+  refreshContext(ctx);
+}
+function refreshContext(ctx){
+  if(ctx==='alertas') renderAlertas();
+  else if(ctx==='fichas') renderFichasList();
+  else renderInfantes();
+}
+function countFilters(ctx){
+  return Object.entries(activeFilters[ctx]).reduce((s,[k,v])=>{
+    if(Array.isArray(v)) return s+v.length;
+    return s+(v&&String(v).trim()?1:0);
+  },0);
 }
 function updateBadges(){
-  ['alertas','infantes'].forEach(ctx=>{
-    const n=Object.values(activeFilters[ctx]).reduce((s,a)=>s+a.length,0);
+  ['alertas','infantes','fichas'].forEach(ctx=>{
+    const n=countFilters(ctx);
     const b=document.getElementById('badge-'+ctx);
     if(b){if(n>0){b.style.display='inline-flex';b.textContent=n;}else{b.style.display='none';}}
   });

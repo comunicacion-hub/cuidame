@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>CuidaMe</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --cyan:#0BC3FF; --teal:#18AE97; --green:#9FDA60; --yellow:#F5AD21;
+    --grad-brand:linear-gradient(120deg,#0BC3FF 0%,#18AE97 55%,#9FDA60 100%);
+    --grad-teal:linear-gradient(135deg,#18AE97,#0BC3FF);
+    --surface:#fff; --border:rgba(0,0,0,0.08); --border-strong:rgba(0,0,0,0.14);
+    --text:#1b2a2e; --text-muted:#647076; --text-dim:#9aa6ab;
+    --radius-md:14px; --radius-lg:20px; --radius-xl:28px;
+    --shadow:0 1px 3px rgba(0,0,0,0.05),0 8px 28px rgba(13,120,150,0.07);
+    --shadow-soft:0 2px 12px rgba(0,0,0,0.05);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Outfit',sans-serif;background:linear-gradient(140deg,#eafaff 0%,#eef3ff 45%,#eafff6 100%) fixed;color:var(--text);min-height:100vh;}
+
+  /* ══ LOGO SVG ══ */
+  .logo-svg{display:block;}
+
+  /* ══ LOGIN ══ */
+  #login{position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  .login-blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:0.5;}
+  .login-card{position:relative;z-index:1;width:430px;max-width:92vw;background:rgba(255,255,255,0.96);border:1px solid rgba(255,255,255,0.9);border-radius:32px;padding:56px 48px 40px;display:flex;flex-direction:column;align-items:center;box-shadow:0 30px 90px rgba(13,140,160,0.12),0 4px 16px rgba(0,0,0,0.04);}
+  .login-logo{width:118px;margin-bottom:10px;}
+  .login-title{font-size:40px;font-weight:600;letter-spacing:-1px;line-height:1;margin:4px 0 28px;background:linear-gradient(100deg,#0dbfeb 0%,#16a89f 45%,#9fda60 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
+  .login-title .c1{color:#0BC3FF;}.login-title .c2{color:#18AE97;}.login-title .c3{color:#9FDA60;}
+
+  .gbtn-wrap{min-height:48px;display:flex;flex-direction:column;align-items:center;width:100%;}
+  .gbtn-fallback{display:inline-flex;align-items:center;gap:12px;background:#fff;color:#3c4043;border:1px solid #e3e6e8;border-radius:14px;padding:13px 26px;font-family:'Outfit',sans-serif;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.06);transition:all 0.15s;}
+  .gbtn-fallback:hover{box-shadow:0 4px 16px rgba(0,0,0,0.1);transform:translateY(-1px);}
+  .login-foot{font-size:14px;color:var(--text-muted);margin-top:30px;}
+  .login-foot b{color:var(--text);font-weight:700;}
+
+  /* ══ HUB ══ */
+  #hub{display:none;min-height:100vh;flex-direction:column;}
+  .topbar{background:#fff;height:84px;display:flex;align-items:center;justify-content:space-between;padding:0 48px;box-shadow:0 1px 0 rgba(0,0,0,0.04);position:relative;}
+  .topbar::after{content:'';position:absolute;left:48px;top:84px;width:2px;height:54px;background:linear-gradient(#0BC3FF,transparent);border-radius:2px;}
+  .tb-brand{display:flex;align-items:center;gap:12px;}
+  .tb-logo{width:42px;display:flex;align-items:center;}
+  .tb-name{font-size:24px;font-weight:600;letter-spacing:-0.5px;background:linear-gradient(100deg,#0dbfeb 0%,#16a89f 45%,#9fda60 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
+  .tb-name .c1{color:#0BC3FF;}.tb-name .c2{color:#18AE97;}.tb-name .c3{color:#9FDA60;}
+  .tb-right{display:flex;align-items:center;gap:12px;}
+  .tb-avatar{width:48px;height:48px;border-radius:50%;background:var(--grad-teal);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;letter-spacing:0.5px;}
+  .tb-logout{width:48px;height:48px;border-radius:50%;background:#eef4fb;border:none;color:#5a6b72;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+  .tb-logout:hover{background:#e2ebf3;color:var(--text);}
+  .tb-logout svg{width:20px;height:20px;}
+  @media(max-width:768px){.topbar{height:70px;padding:0 20px;}.topbar::after{display:none;}.tb-logo{width:36px;}.tb-name{font-size:20px;}.tb-avatar,.tb-logout{width:42px;height:42px;}}
+
+  .hub-body{flex:1;max-width:1180px;width:100%;margin:0 auto;padding:54px 48px 80px;}
+  @media(max-width:768px){.hub-body{padding:34px 20px 60px;}}
+  .hub-hello{font-size:38px;font-weight:800;letter-spacing:-1px;line-height:1.1;}
+  .hub-hello .nm{color:#0BC3FF;}
+  .hub-sub{font-size:16px;color:var(--text-muted);margin-top:6px;}
+  @media(max-width:768px){.hub-hello{font-size:28px;}.hub-sub{font-size:14px;}}
+
+  .sec-row{display:flex;align-items:center;gap:14px;margin:46px 0 22px;}
+  .sec-label{font-size:13px;font-weight:700;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;}
+  .sec-config{width:34px;height:34px;border-radius:50%;background:#fff;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);transition:all 0.15s;box-shadow:var(--shadow-soft);}
+  .sec-config:hover{color:var(--teal);transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,0.08);}
+  .sec-config svg{width:17px;height:17px;}
+
+  .mod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:22px;}
+  .mod-card{background:#fff;border-radius:24px;padding:28px 26px 24px;box-shadow:var(--shadow);cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;position:relative;overflow:hidden;display:flex;flex-direction:column;min-height:180px;}
+  .mod-card:hover{transform:translateY(-4px);box-shadow:0 6px 16px rgba(0,0,0,0.06),0 18px 44px rgba(13,120,150,0.12);}
+  .mod-card.inactivo{opacity:0.55;cursor:default;}
+  .mod-card.inactivo:hover{transform:none;box-shadow:var(--shadow);}
+  .mod-emoji{font-size:34px;line-height:1;margin-bottom:auto;}
+  .mod-name{font-size:21px;font-weight:700;letter-spacing:-0.4px;line-height:1.2;margin-top:18px;}
+  .mod-desc{font-size:13px;color:var(--text-muted);margin-top:6px;}
+  .mod-bar{height:4px;border-radius:3px;background:var(--grad-teal);margin-top:18px;width:100%;transform-origin:left;transition:transform 0.25s;}
+  .mod-card:hover .mod-bar{transform:scaleX(1.0);}
+  .mod-soon{position:absolute;top:18px;right:18px;font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;background:#eef2f5;color:#8a979d;padding:4px 10px;border-radius:20px;}
+
+  /* ══ MODAL ══ */
+  .ov{display:none;position:fixed;inset:0;z-index:300;align-items:center;justify-content:center;background:rgba(20,40,46,0.34);backdrop-filter:blur(5px);padding:24px;}
+  .ov.open{display:flex;}
+  .modal{background:#fff;width:100%;max-width:760px;max-height:calc(100dvh - 48px);border-radius:24px;display:flex;flex-direction:column;box-shadow:0 30px 90px rgba(0,0,0,0.2);overflow:hidden;}
+  @media(max-width:768px){.ov{padding:0;}.modal{max-width:100%;height:100dvh;max-height:100dvh;border-radius:0;}}
+  .modal-head{padding:22px 26px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+  .modal-title{font-size:20px;font-weight:700;display:flex;align-items:center;gap:9px;}
+  .modal-title svg{width:20px;height:20px;color:var(--text-muted);}
+  .modal-x{width:38px;height:38px;border-radius:50%;background:#eef4fb;border:none;cursor:pointer;font-size:17px;color:#5a6b72;transition:all 0.15s;}
+  .modal-x:hover{background:#e2ebf3;color:var(--text);}
+  .modal-body{flex:1;overflow-y:auto;}
+
+  .tabs{display:flex;gap:6px;padding:14px 26px 0;border-bottom:1px solid var(--border);}
+  .tab{padding:12px 18px;font-size:15px;font-weight:600;color:var(--text-muted);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:8px;transition:all 0.15s;background:none;border-top:none;border-left:none;border-right:none;font-family:'Outfit',sans-serif;}
+  .tab svg{width:16px;height:16px;}
+  .tab.active{color:var(--teal);border-bottom-color:var(--teal);}
+  .tab:hover:not(.active){color:var(--text);}
+  .tab-pane{display:none;padding:22px 26px 28px;}
+  .tab-pane.active{display:block;}
+
+  .pane-actions{display:flex;justify-content:flex-end;margin-bottom:16px;}
+  .btn{display:inline-flex;align-items:center;gap:7px;padding:10px 18px;border-radius:12px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.15s;border:1.5px solid var(--border);background:#fff;color:var(--text-muted);min-height:42px;}
+  .btn:hover{background:#f6f9fb;color:var(--text);}
+  .btn-primary{background:var(--grad-teal);color:#fff;border:none;box-shadow:0 4px 14px rgba(11,195,255,0.3);}
+  .btn-primary:hover{color:#fff;transform:translateY(-1px);box-shadow:0 6px 18px rgba(11,195,255,0.4);}
+  .btn-outline{background:#fff;color:var(--cyan);border:1.5px solid rgba(11,195,255,0.4);}
+  .btn-outline:hover{background:rgba(11,195,255,0.06);color:var(--cyan);}
+  .btn:active{transform:scale(0.97);}
+
+  .dtable{width:100%;border-collapse:collapse;}
+  .dtable th{text-align:left;font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.7px;padding:10px 12px;border-bottom:1px solid var(--border);}
+  .dtable td{padding:13px 12px;border-bottom:1px solid rgba(0,0,0,0.045);font-size:14px;vertical-align:middle;}
+  .dtable tr:last-child td{border-bottom:none;}
+  .dtable .em{font-size:20px;}
+  .url-cell{color:var(--text-muted);font-size:13px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;font-size:12px;font-weight:600;}
+  .b-active{background:rgba(24,174,151,0.12);color:#0a9e83;}
+  .b-inactive{background:rgba(0,0,0,0.05);color:var(--text-muted);}
+  .b-admin{background:rgba(11,195,255,0.12);color:#0a8fc4;}
+  .b-editor{background:rgba(159,218,96,0.18);color:#5f8f1e;}
+  .row-edit{width:34px;height:34px;border-radius:50%;background:#fff;border:1px solid var(--border);cursor:pointer;color:var(--text-muted);display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s;}
+  .row-edit:hover{color:var(--teal);box-shadow:0 2px 8px rgba(0,0,0,0.08);}
+  .row-edit svg{width:15px;height:15px;}
+
+  /* form modal */
+  .fm-body{padding:24px 26px;}
+  .fg{display:flex;flex-direction:column;gap:9px;margin-bottom:16px;}
+  .fg label{font-size:14px;font-weight:600;color:var(--text);}
+  .fg input,.fg select{width:100%;min-height:46px;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:12px;font-family:'Outfit',sans-serif;font-size:15px;outline:none;transition:all 0.15s;background:#fff;}
+  .fg input:focus,.fg select:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(24,174,151,0.12);}
+  .fg-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media(max-width:560px){.fg-row{grid-template-columns:1fr;}}
+  .modal-foot{padding:16px 26px calc(16px + env(safe-area-inset-bottom));border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;}
+  .toggle-wrap{display:flex;align-items:center;gap:10px;}
+  .toggle{position:relative;width:46px;height:26px;background:#d3dade;border-radius:20px;cursor:pointer;transition:background 0.2s;flex-shrink:0;}
+  .toggle.on{background:var(--teal);}
+  .toggle::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2);}
+  .toggle.on::after{transform:translateX(20px);}
+
+  .spinner{width:34px;height:34px;border:3px solid rgba(24,174,151,0.2);border-top-color:var(--teal);border-radius:50%;animation:spin 0.7s linear infinite;margin:40px auto;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .empty{padding:40px;text-align:center;color:var(--text-muted);font-size:14px;}
+
+  #toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);z-index:600;background:#1b2a2e;color:#fff;padding:13px 22px;border-radius:14px;font-size:14px;font-weight:500;box-shadow:0 10px 36px rgba(0,0,0,0.22);opacity:0;visibility:hidden;transition:all 0.25s;max-width:90vw;text-align:center;}
+  #toast.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0);}
+  #toast.error{background:#c91a44;}
+</style>
+</head>
+<body>
+
+<!-- ════ LOGIN ════ -->
+<div id="login">
+  <div class="login-blob" style="width:420px;height:420px;background:radial-gradient(#0BC3FF,#18AE97);top:-120px;left:-100px;"></div>
+  <div class="login-blob" style="width:340px;height:340px;background:radial-gradient(#9FDA60,#F5AD21);bottom:-100px;right:-80px;opacity:0.35;"></div>
+  <div class="login-card">
+    <div class="login-logo" id="login-logo"></div>
+    <div class="login-title">CuidaMe</div>
+    <div class="gbtn-wrap">
+      <div id="gbtn"></div>
+      <button class="gbtn-fallback" id="gbtn-fallback" onclick="startLogin()" style="display:none;">Iniciar Sesión con
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg>
+      </button>
+    </div>
+    <div class="login-foot">Una <b>app</b> de <b>Redes Con Rostro</b></div>
+  </div>
+</div>
+
+<!-- ════ HUB ════ -->
+<div id="hub">
+  <div class="topbar">
+    <div class="tb-brand">
+      <div class="tb-logo" id="tb-logo"></div>
+      <div class="tb-name">CuidaMe</div>
+    </div>
+    <div class="tb-right">
+      <div class="tb-avatar" id="tb-avatar">CS</div>
+      <button class="tb-logout" onclick="logout()" title="Cerrar sesión">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="hub-body">
+    <div class="hub-hello">Hola, <span class="nm" id="hello-name">—</span> 👋</div>
+    <div class="hub-sub">Selecciona un módulo para continuar</div>
+
+    <div class="sec-row">
+      <span class="sec-label">Módulos disponibles</span>
+      <button class="sec-config" id="btn-config" onclick="openConfig()" title="Configuración" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+
+    <div class="mod-grid" id="mod-grid"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- ════ MODAL CONFIG ════ -->
+<div class="ov" id="ov-config">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configuración</div>
+      <button class="modal-x" onclick="closeOv('ov-config')">✕</button>
+    </div>
+    <div class="tabs">
+      <button class="tab active" id="tab-mod" onclick="switchTab('mod')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Módulos</button>
+      <button class="tab" id="tab-usr" onclick="switchTab('usr')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Usuarios</button>
+    </div>
+    <div class="modal-body">
+      <div class="tab-pane active" id="pane-mod">
+        <div class="pane-actions"><button class="btn btn-outline" onclick="openModuloForm()">+ Nuevo módulo</button></div>
+        <table class="dtable"><thead><tr><th>Emoji</th><th>Nombre</th><th>URL</th><th>Estado</th><th></th></tr></thead><tbody id="tbody-mod"></tbody></table>
+      </div>
+      <div class="tab-pane" id="pane-usr">
+        <div class="pane-actions"><button class="btn btn-outline" onclick="openUsuarioForm()">+ Nuevo usuario</button></div>
+        <table class="dtable"><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Activo</th><th></th></tr></thead><tbody id="tbody-usr"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL FORM MÓDULO ════ -->
+<div class="ov" id="ov-modulo">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head"><div class="modal-title" id="modulo-title">Nuevo módulo</div><button class="modal-x" onclick="closeOv('ov-modulo')">✕</button></div>
+    <div class="fm-body">
+      <div class="fg-row">
+        <div class="fg"><label>Emoji</label><input id="md-emoji" placeholder="💫" maxlength="4"></div>
+        <div class="fg"><label>Estado</label>
+          <div class="toggle-wrap"><div class="toggle on" id="md-activo" onclick="this.classList.toggle('on')"></div><span style="font-size:14px;color:var(--text-muted);">Activo</span></div>
+        </div>
+      </div>
+      <div class="fg"><label>Nombre</label><input id="md-nombre" placeholder="Dashboard Ambiental"></div>
+      <div class="fg"><label>URL</label><input id="md-url" placeholder="https://comunicacion-hub.github.io/..."></div>
+      <div class="fg"><label>Descripción</label><input id="md-desc" placeholder="Breve descripción"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeOv('ov-modulo')">Cancelar</button>
+      <button class="btn btn-primary" id="md-save" onclick="saveModulo()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL FORM USUARIO ════ -->
+<div class="ov" id="ov-usuario">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head"><div class="modal-title" id="usuario-title">Nuevo usuario</div><button class="modal-x" onclick="closeOv('ov-usuario')">✕</button></div>
+    <div class="fm-body">
+      <div class="fg"><label>Nombre</label><input id="us-nombre" placeholder="Nombre completo"></div>
+      <div class="fg"><label>Email</label><input id="us-email" type="email" placeholder="correo@redesconrostro.org"></div>
+      <div class="fg-row">
+        <div class="fg"><label>Rol</label><select id="us-rol"><option value="Editor">Editor</option><option value="Admin">Admin</option></select></div>
+        <div class="fg"><label>Estado</label>
+          <div class="toggle-wrap"><div class="toggle on" id="us-activo" onclick="this.classList.toggle('on')"></div><span style="font-size:14px;color:var(--text-muted);">Activo</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeOv('ov-usuario')">Cancelar</button>
+      <button class="btn btn-primary" id="us-save" onclick="saveUsuario()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════════ CONFIG ════════
+const SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbxrQRJXG4RItmps9y00QGm6zZNZaM_IssRk259M6h6CDAWXdzO2Lr3HJgTLweUS7yT8/exec';
+const G_CLIENT    = '783730193199-d7nhahv3ou4rmps7nrpoop5cpor079ej.apps.googleusercontent.com';
+const DOMAIN      = 'redesconrostro.org';
+const ADMIN_EMAIL = 'comunicacion@redesconrostro.org';
+const SESSION_KEY = 'rcr_hub_session';
+const CACHE_KEY   = 'cuidame_hub_cache';
+const CACHE_TTL   = 5*60*1000;
+
+let currentUser=null, modulos=[], usuarios=[];
+let editingModulo=null, editingUsuario=null;
+
+// ════════ LOGO SVG OFICIAL RCR (IDs únicos por instancia) ════════
+let _logoN=0;
+function logoSVG(size){
+  const u='lg'+(++_logoN)+'_';
+  const h=Math.round(size*136.92/140.71);
+  return `<svg width="${size}" height="${h}" viewBox="0 0 140.71 136.92" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="display:block">
+    <defs>
+      <linearGradient id="${u}22" x1="35.72" y1="77.84" x2="140.71" y2="77.84" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#f5ad21"/><stop offset="1" stop-color="#9fda60"/></linearGradient>
+      <linearGradient id="${u}11" x1="0" y1="62.76" x2="108.34" y2="62.76" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0dbfeb"/><stop offset="1" stop-color="#16a89f"/></linearGradient>
+      <linearGradient id="${u}22b" x1="63.21" y1="113.56" x2="77.5" y2="113.56" xlink:href="#${u}22"/>
+      <linearGradient id="${u}11b" x1="23.8" y1="7.15" x2="38.09" y2="7.15" xlink:href="#${u}11"/>
+      <linearGradient id="${u}22c" x1="104.4" y1="7.15" x2="118.69" y2="7.15" xlink:href="#${u}22"/>
+    </defs>
+    <path fill="url(#${u}22)" d="M139.59,71.37c-2.7,13.82-12.62,28.95-28.69,43.74-6.02,5.55-13.96,11.29-23.6,17.1-5.23,3.15-11.08,4.71-16.94,4.71s-11.71-1.57-16.94-4.71c-5.61-3.38-10.72-6.79-15.18-10.14-2.79-2.1-3.35-6.05-1.26-8.83,2.1-2.79,6.05-3.35,8.84-1.25,4.11,3.09,8.86,6.26,14.1,9.42,6.44,3.87,14.43,3.87,20.86,0,8.79-5.29,16.25-10.68,21.57-15.57,13.88-12.78,22.7-25.87,24.85-36.87,3.71-19.02-4.58-33.22-21.63-37.05-15.53-3.48-30.47,12.02-30.62,12.18-.04.04-.09.08-.13.13-.05.05-.09.1-.14.15-.03.03-.69.65-1.79,1.77-2.15,2.2-6.02,6.33-10.16,11.69,0,.02-.02.03-.02.03-4.09,5.28-8.45,11.77-11.7,18.76-1.07,2.3-3.35,3.65-5.72,3.65-.89,0-1.8-.19-2.66-.59-3.16-1.47-4.54-5.23-3.06-8.39,8.95-19.24,24.6-34.34,26.36-36,.36-.38,1.29-1.31,2.69-2.56,6.23-5.52,21.9-17.14,39.72-13.13,4.18.94,8.04,2.36,11.54,4.22,6.07,3.23,11.03,7.79,14.63,13.52,5.86,9.31,7.62,21.09,5.09,34.04Z"/>
+    <path fill="url(#${u}11)" d="M107.94,62.6c-12.12,32.62-37.55,44.15-58.08,44.15-.68,0-1.35-.02-2.02-.04-5.23-.19-10.24-1.09-14.91-2.6-10.92-3.53-20.04-10.43-26.02-19.71h0c-2.43-3.78-4.34-7.94-5.65-12.44-.06-.19-.1-.38-.14-.58,0-.02,0-.04,0-.06,0-.02,0-.04-.02-.06-2.49-12.91-.72-24.64,5.12-33.93,5.67-9.03,14.73-15.16,26.17-17.74,7.14-1.6,14.66-.86,22.36,2.21,3.23,1.3,4.81,4.96,3.52,8.2-1.29,3.23-4.96,4.81-8.2,3.52-5.28-2.1-10.3-2.65-14.91-1.62-16.97,3.81-25.26,17.89-21.69,36.77,4.42,14.83,18.07,24.8,34.86,25.42,1.79.07,3.53.03,5.23-.1,12.44-.94,22.4-6.89,29.84-14.88,5.77-6.19,10.02-13.62,12.72-20.9,1.22-3.27,4.85-4.94,8.12-3.72,3.26,1.21,4.93,4.85,3.72,8.11Z"/>
+    <circle fill="url(#${u}22b)" cx="70.35" cy="113.56" r="7.15"/>
+    <circle fill="url(#${u}11b)" cx="30.95" cy="7.15" r="7.15"/>
+    <circle fill="url(#${u}22c)" cx="111.54" cy="7.15" r="7.15"/>
+  </svg>`;
+}
+
+// ════════ SESSION / CACHE ════════
+function saveSession(u){try{sessionStorage.setItem(SESSION_KEY,JSON.stringify(u));}catch(e){}}
+function loadSession(){try{const s=sessionStorage.getItem(SESSION_KEY);return s?JSON.parse(s):null;}catch(e){return null;}}
+function clearSession(){try{sessionStorage.removeItem(SESSION_KEY);}catch(e){}}
+function saveCache(){try{localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),modulos,usuarios}));}catch(e){}}
+function loadCache(){try{const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}');if(!c.ts||Date.now()-c.ts>CACHE_TTL)return null;return c;}catch(e){return null;}}
+
+// ════════ GOOGLE LOGIN ════════
+let gReady=false;
+function cancelPrompt(){try{if(window.google&&google.accounts&&google.accounts.id){google.accounts.id.cancel();google.accounts.id.disableAutoSelect();}}catch(e){}}
+function initGoogle(){
+  if(typeof google==='undefined'||!google.accounts||!google.accounts.id) return false;
+  google.accounts.id.initialize({client_id:G_CLIENT,callback:onCredential,auto_select:false,cancel_on_tap_outside:true,use_fedcm_for_prompt:false});
+  const t=document.getElementById('gbtn'), fb=document.getElementById('gbtn-fallback');
+  if(t&&!gReady){t.innerHTML='';google.accounts.id.renderButton(t,{theme:'outline',size:'large',type:'standard',shape:'pill',text:'signin_with',width:300});gReady=true;if(fb)fb.style.display='none';}
+  return true;
+}
+function startLogin(){if(typeof google==='undefined'){toast('Cargando Google...',true);return;}if(!initGoogle())toast('No se pudo iniciar Google. Recarga.',true);}
+function onCredential(resp){
+  try{
+    cancelPrompt();
+    const p=JSON.parse(atob(resp.credential.split('.')[1]));
+    const email=p.email||'', name=p.name||email, pic=p.picture||'';
+    if(!email.endsWith('@'+DOMAIN)){toast('Solo cuentas @'+DOMAIN,true);return;}
+    currentUser={email,nombre:name,rol:(email===ADMIN_EMAIL?'Admin':'Editor'),picture:pic};
+    saveSession(currentUser);
+    enterHub();
+  }catch(e){toast('Error al iniciar sesión',true);}
+}
+
+// ════════ API ════════
+async function apiGet(accion,params={}){
+  const u=new URL(SCRIPT_URL);
+  u.searchParams.set('accion',accion);
+  u.searchParams.set('email',currentUser.email);
+  Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
+  const r=await fetch(u.toString(),{method:'GET',cache:'no-store'});
+  const t=await r.text(); try{return JSON.parse(t);}catch(e){return {raw:t};}
+}
+async function apiPost(accion,datos){
+  const r=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({accion,email:currentUser.email,datos}),cache:'no-store'});
+  const t=await r.text(); try{return JSON.parse(t);}catch(e){return {ok:true,raw:t};}
+}
+
+// ════════ ENTER HUB ════════
+function enterHub(){
+  document.getElementById('login').style.display='none';
+  document.getElementById('hub').style.display='flex';
+  document.getElementById('hello-name').textContent=(currentUser.nombre||'').split(' ')[0]||'';
+  document.getElementById('tb-avatar').textContent=iniciales(currentUser.nombre);
+  if(currentUser.rol==='Admin') document.getElementById('btn-config').style.display='flex';
+  const c=loadCache();
+  if(c){modulos=c.modulos||[];usuarios=c.usuarios||[];renderModulos();}
+  loadData();
+}
+async function loadData(){
+  try{
+    const rM=await apiGet('getModulos');
+    if(rM&&!rM.error&&Array.isArray(rM)) modulos=rM;
+    // confirmar rol real desde el backend (por si el usuario es Admin en la hoja)
+    const rP=await apiGet('getPerfil');
+    if(rP&&rP.ok&&rP.usuario&&rP.usuario.Rol){
+      currentUser.rol=rP.usuario.Rol; saveSession(currentUser);
+      document.getElementById('btn-config').style.display = currentUser.rol==='Admin'?'flex':'none';
+    }
+    if(currentUser.rol==='Admin'){const rU=await apiGet('getUsuarios'); if(rU&&!rU.error&&Array.isArray(rU)) usuarios=rU;}
+    saveCache(); renderModulos();
+  }catch(e){toast('No se pudo conectar. Mostrando datos guardados.',true);}
+}
+
+function iniciales(n){return (n||'?').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();}
+function esActivo(v){if(v===''||v==null)return true;if(v===true)return true;const s=String(v).trim().toLowerCase();return s==='true'||s==='sí'||s==='si'||s==='1'||s==='verdadero';}
+
+// ════════ RENDER MÓDULOS ════════
+function renderModulos(){
+  const grid=document.getElementById('mod-grid');
+  const activos=modulos.filter(m=>esActivo(m.Activo));
+  if(!activos.length){grid.innerHTML='<div class="empty">No hay módulos disponibles.</div>';return;}
+  grid.innerHTML=activos.map(m=>{
+    const tieneURL=m.URL&&String(m.URL).trim()&&String(m.URL).startsWith('http');
+    const soon = !tieneURL;
+    return `<div class="mod-card${soon?' inactivo':''}" ${tieneURL?`onclick="abrirModulo('${encodeURIComponent(m.URL)}')"`:''}>
+      ${soon?'<span class="mod-soon">Próximamente</span>':''}
+      <div class="mod-emoji">${m.Emoji||'📦'}</div>
+      <div class="mod-name">${m.Nombre||'Módulo'}</div>
+      <div class="mod-desc">${m.Descripcion||''}</div>
+      <div class="mod-bar"></div>
+    </div>`;
+  }).join('');
+}
+function abrirModulo(url){window.location.href=decodeURIComponent(url);}
+
+// ════════ CONFIG MODAL ════════
+function openConfig(){renderConfigModulos();renderConfigUsuarios();openOv('ov-config');}
+function switchTab(t){
+  document.getElementById('tab-mod').classList.toggle('active',t==='mod');
+  document.getElementById('tab-usr').classList.toggle('active',t==='usr');
+  document.getElementById('pane-mod').classList.toggle('active',t==='mod');
+  document.getElementById('pane-usr').classList.toggle('active',t==='usr');
+}
+function renderConfigModulos(){
+  const tb=document.getElementById('tbody-mod');
+  if(!modulos.length){tb.innerHTML='<tr><td colspan="5" class="empty">Sin módulos</td></tr>';return;}
+  tb.innerHTML=modulos.map(m=>{
+    const url=m.URL?String(m.URL):'—';
+    return `<tr>
+      <td class="em">${m.Emoji||'📦'}</td>
+      <td style="font-weight:600;">${m.Nombre||'—'}</td>
+      <td class="url-cell" title="${url}">${url==='—'?'—':url}</td>
+      <td><span class="badge ${esActivo(m.Activo)?'b-active':'b-inactive'}">${esActivo(m.Activo)?'Activo':'Inactivo'}</span></td>
+      <td style="text-align:right;"><button class="row-edit" onclick='editModulo("${m.ID_Modulo}")'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
+    </tr>`;
+  }).join('');
+}
+function renderConfigUsuarios(){
+  const tb=document.getElementById('tbody-usr');
+  if(!usuarios.length){tb.innerHTML='<tr><td colspan="5" class="empty">Sin usuarios</td></tr>';return;}
+  tb.innerHTML=usuarios.map(u=>{
+    const rol=u.Rol||'Editor';
+    return `<tr>
+      <td style="font-weight:600;">${u.Nombre||'—'}</td>
+      <td class="url-cell" title="${u.Email||''}">${u.Email||'—'}</td>
+      <td><span class="badge ${rol==='Admin'?'b-admin':'b-editor'}">${rol}</span></td>
+      <td><span class="badge ${esActivo(u.Activo)?'b-active':'b-inactive'}">${esActivo(u.Activo)?'Activo':'Inactivo'}</span></td>
+      <td style="text-align:right;"><button class="row-edit" onclick='editUsuario("${u.ID_Usuario}")'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ════════ FORM MÓDULO ════════
+function setToggle(id,on){document.getElementById(id).classList.toggle('on',!!on);}
+function getToggle(id){return document.getElementById(id).classList.contains('on');}
+function openModuloForm(){
+  editingModulo=null;
+  document.getElementById('modulo-title').textContent='Nuevo módulo';
+  document.getElementById('md-emoji').value='';
+  document.getElementById('md-nombre').value='';
+  document.getElementById('md-url').value='';
+  document.getElementById('md-desc').value='';
+  setToggle('md-activo',true);
+  openOv('ov-modulo');
+}
+function editModulo(id){
+  const m=modulos.find(x=>String(x.ID_Modulo)===String(id)); if(!m)return;
+  editingModulo=id;
+  document.getElementById('modulo-title').textContent='Editar módulo';
+  document.getElementById('md-emoji').value=m.Emoji||'';
+  document.getElementById('md-nombre').value=m.Nombre||'';
+  document.getElementById('md-url').value=m.URL||'';
+  document.getElementById('md-desc').value=m.Descripcion||'';
+  setToggle('md-activo',esActivo(m.Activo));
+  openOv('ov-modulo');
+}
+async function saveModulo(){
+  const datos={
+    Nombre:document.getElementById('md-nombre').value.trim(),
+    URL:document.getElementById('md-url').value.trim(),
+    Emoji:document.getElementById('md-emoji').value.trim(),
+    Descripcion:document.getElementById('md-desc').value.trim(),
+    Activo:getToggle('md-activo')
+  };
+  if(!datos.Nombre){toast('Escribe el nombre',true);return;}
+  const btn=document.getElementById('md-save'); btn.disabled=true; btn.textContent='Guardando...';
+  try{
+    if(editingModulo){
+      datos.ID_Modulo=editingModulo;
+      const r=await apiPost('editarModulo',datos); if(r&&r.error)throw new Error(r.error);
+      const i=modulos.findIndex(x=>String(x.ID_Modulo)===String(editingModulo)); if(i>=0)modulos[i]={...modulos[i],...datos};
+      toast('Módulo actualizado');
+    }else{
+      const r=await apiPost('crearModulo',datos); if(r&&r.error)throw new Error(r.error);
+      modulos.push({ID_Modulo:(r&&r.id)||'tmp_'+Date.now(),...datos});
+      toast('Módulo creado');
+    }
+    saveCache(); renderModulos(); renderConfigModulos(); closeOv('ov-modulo');
+    setTimeout(loadData,1500);
+  }catch(e){toast('No se pudo guardar: '+(e.message||'error'),true);}
+  finally{btn.disabled=false; btn.textContent='Guardar';}
+}
+
+// ════════ FORM USUARIO ════════
+function openUsuarioForm(){
+  editingUsuario=null;
+  document.getElementById('usuario-title').textContent='Nuevo usuario';
+  document.getElementById('us-nombre').value='';
+  document.getElementById('us-email').value='';
+  document.getElementById('us-rol').value='Editor';
+  setToggle('us-activo',true);
+  openOv('ov-usuario');
+}
+function editUsuario(id){
+  const u=usuarios.find(x=>String(x.ID_Usuario)===String(id)); if(!u)return;
+  editingUsuario=id;
+  document.getElementById('usuario-title').textContent='Editar usuario';
+  document.getElementById('us-nombre').value=u.Nombre||'';
+  document.getElementById('us-email').value=u.Email||'';
+  document.getElementById('us-rol').value=u.Rol||'Editor';
+  setToggle('us-activo',esActivo(u.Activo));
+  openOv('ov-usuario');
+}
+async function saveUsuario(){
+  const datos={
+    Nombre:document.getElementById('us-nombre').value.trim(),
+    Email:document.getElementById('us-email').value.trim(),
+    Rol:document.getElementById('us-rol').value,
+    Activo:getToggle('us-activo')
+  };
+  if(!datos.Nombre||!datos.Email){toast('Completa nombre y email',true);return;}
+  const btn=document.getElementById('us-save'); btn.disabled=true; btn.textContent='Guardando...';
+  try{
+    if(editingUsuario){
+      datos.ID_Usuario=editingUsuario;
+      const r=await apiPost('editarUsuario',datos); if(r&&r.error)throw new Error(r.error);
+      const i=usuarios.findIndex(x=>String(x.ID_Usuario)===String(editingUsuario)); if(i>=0)usuarios[i]={...usuarios[i],...datos};
+      toast('Usuario actualizado');
+    }else{
+      const r=await apiPost('crearUsuario',datos); if(r&&r.error)throw new Error(r.error);
+      usuarios.push({ID_Usuario:(r&&r.id)||'tmp_'+Date.now(),...datos});
+      toast('Usuario creado');
+    }
+    saveCache(); renderConfigUsuarios(); closeOv('ov-usuario');
+    setTimeout(loadData,1500);
+  }catch(e){toast('No se pudo guardar: '+(e.message||'error'),true);}
+  finally{btn.disabled=false; btn.textContent='Guardar';}
+}
+
+// ════════ HELPERS ════════
+function openOv(id){document.getElementById(id).classList.add('open');document.body.style.overflow='hidden';}
+function closeOv(id){document.getElementById(id).classList.remove('open');document.body.style.overflow='';}
+function logout(){clearSession();cancelPrompt();location.reload();}
+function toast(msg,err){const t=document.getElementById('toast');t.textContent=msg;t.className='show'+(err?' error':'');setTimeout(()=>t.className='',2800);}
+
+// ════════ INIT ════════
+window.addEventListener('load',()=>{
+  document.getElementById('login-logo').innerHTML=logoSVG(120);
+  document.getElementById('tb-logo').innerHTML=logoSVG(44);
+  const s=loadSession();
+  if(s){currentUser=s;enterHub();}
+  else{let n=0;const iv=setInterval(()=>{if(initGoogle()||++n>20)clearInterval(iv);},300);}
+});
+</script>
+</body>
+</html>

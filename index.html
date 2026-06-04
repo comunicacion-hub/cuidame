@@ -142,10 +142,14 @@
   #toast.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0);}
   #toast.error{background:#c91a44;}
 
-  /* Hotfix: las tarjetas de módulo ahora son links nativos */
+  /* ══ FIX FINAL: links nativos, mobile y accesibilidad ══ */
   .mod-card{color:inherit;text-decoration:none;}
   .mod-card:visited{color:inherit;}
-  .mod-card:focus-visible{outline:3px solid rgba(11,195,255,.35);outline-offset:3px;}
+  .mod-card:focus-visible,.btn:focus-visible,.tab:focus-visible,.sec-config:focus-visible,.tb-logout:focus-visible,.modal-x:focus-visible,.row-edit:focus-visible,.gbtn-fallback:focus-visible{outline:3px solid rgba(11,195,255,.35);outline-offset:3px;}
+  @media(max-width:420px){.mod-grid{grid-template-columns:1fr;gap:16px;}.mod-card{min-height:160px;padding:24px 22px;}.login-card{padding:44px 24px 34px;border-radius:26px;}}
+  @media(min-width:421px){.mod-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));}}
+  #toast{bottom:calc(20px + env(safe-area-inset-bottom));}
+  .btn:disabled{opacity:.62;cursor:not-allowed;transform:none!important;}
 
 </style>
 </head>
@@ -274,13 +278,12 @@
 const SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbxrQRJXG4RItmps9y00QGm6zZNZaM_IssRk259M6h6CDAWXdzO2Lr3HJgTLweUS7yT8/exec';
 const G_CLIENT    = '783730193199-d7nhahv3ou4rmps7nrpoop5cpor079ej.apps.googleusercontent.com';
 const DOMAIN      = 'redesconrostro.org';
-const ADMIN_EMAIL = 'comunicacion@redesconrostro.org';
-const SESSION_KEY = 'rcr_hub_session';
-const CACHE_KEY   = 'cuidame_hub_cache';
+const SESSION_KEY = 'rcr_hub_session_v2';
+const CACHE_KEY   = 'cuidame_hub_cache_v2';
 const CACHE_TTL   = 5*60*1000;
-
+const ALLOWED_MODULE_HOSTS = ['comunicacion-hub.github.io','redesconrostro.org','www.redesconrostro.org'];
 let currentUser=null, modulos=[], usuarios=[];
-let editingModulo=null, editingUsuario=null;
+let editingModulo=null, editingUsuario=null, toastTimer=null;
 
 // ════════ LOGO SVG OFICIAL RCR (IDs únicos por instancia) ════════
 let _logoN=0;
@@ -304,11 +307,14 @@ function logoSVG(size){
 }
 
 // ════════ SESSION / CACHE ════════
+function cacheKey(){return currentUser&&currentUser.email?`${CACHE_KEY}:${currentUser.email}`:CACHE_KEY;}
 function saveSession(u){try{sessionStorage.setItem(SESSION_KEY,JSON.stringify(u));}catch(e){}}
 function loadSession(){try{const s=sessionStorage.getItem(SESSION_KEY);return s?JSON.parse(s):null;}catch(e){return null;}}
 function clearSession(){try{sessionStorage.removeItem(SESSION_KEY);}catch(e){}}
-function saveCache(){try{localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),modulos,usuarios}));}catch(e){}}
-function loadCache(){try{const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}');if(!c.ts||Date.now()-c.ts>CACHE_TTL)return null;return c;}catch(e){return null;}}
+function clearCache(){try{Object.keys(localStorage).filter(k=>k===CACHE_KEY||k.startsWith(CACHE_KEY+':')||k==='cuidame_hub_cache').forEach(k=>localStorage.removeItem(k));}catch(e){}}
+function saveCache(){try{if(!currentUser||!currentUser.email)return;localStorage.setItem(cacheKey(),JSON.stringify({ts:Date.now(),modulos}));}catch(e){}}
+function loadCache(){try{const c=JSON.parse(localStorage.getItem(cacheKey())||'{}');if(!c.ts||Date.now()-c.ts>CACHE_TTL)return null;return c;}catch(e){return null;}}
+function hasToken(){return !!(currentUser&&currentUser.idToken);}
 
 // ════════ GOOGLE LOGIN ════════
 let gInit=false;
@@ -317,96 +323,123 @@ function initGoogleOnce(){
   if(typeof google==='undefined'||!google.accounts||!google.accounts.id) return false;
   google.accounts.id.initialize({client_id:G_CLIENT,callback:onCredential,auto_select:false,cancel_on_tap_outside:true,use_fedcm_for_prompt:false});
   gInit=true;
-  const renderBtn = () => {
+  const renderBtn=()=>{
     const host=document.getElementById('gbtn-google');
     if(host){
       host.innerHTML='';
-      try{ google.accounts.id.renderButton(host,{theme:'outline',size:'large',type:'standard',shape:'pill',text:'signin_with',width:300}); }catch(e){}
+      const w=Math.min(300, Math.max(240, host.getBoundingClientRect().width||300));
+      try{google.accounts.id.renderButton(host,{theme:'outline',size:'large',type:'standard',shape:'pill',text:'signin_with',width:w});}catch(e){}
     }
   };
-  if(document.readyState==='loading'){
-    window.addEventListener('DOMContentLoaded',renderBtn);
-  }else{
-    renderBtn();
-  }
+  if(document.readyState==='loading') window.addEventListener('DOMContentLoaded',renderBtn); else renderBtn();
   return true;
 }
 function startLogin(){
   if(typeof google==='undefined'){toast('Cargando Google... intenta de nuevo',true);return;}
   if(!initGoogleOnce()){toast('No se pudo iniciar Google. Recarga la página.',true);return;}
-  try{ google.accounts.id.prompt(); }catch(e){}
+  try{google.accounts.id.prompt();}catch(e){}
+}
+function decodeJwtPayload(token){
+  const payload=(token||'').split('.')[1];
+  if(!payload) throw new Error('Token incompleto');
+  const normalized=payload.replace(/-/g,'+').replace(/_/g,'/');
+  const json=decodeURIComponent(Array.prototype.map.call(atob(normalized),c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+  return JSON.parse(json);
 }
 function onCredential(resp){
   try{
     cancelPrompt();
-    const p=JSON.parse(atob(resp.credential.split('.')[1]));
-    const email=p.email||'', name=p.name||email, pic=p.picture||'';
+    if(!resp||!resp.credential) throw new Error('Sin credencial');
+    const p=decodeJwtPayload(resp.credential);
+    const email=(p.email||'').toLowerCase();
+    const name=p.name||email;
+    const pic=p.picture||'';
     if(!email.endsWith('@'+DOMAIN)){toast('Solo cuentas @'+DOMAIN,true);return;}
-    currentUser={email,nombre:name,rol:(email===ADMIN_EMAIL?'Admin':'Editor'),picture:pic};
+    currentUser={email,nombre:name,rol:null,picture:pic,idToken:resp.credential,authAt:Date.now()};
     saveSession(currentUser);
     enterHub();
   }catch(e){toast('Error al iniciar sesión',true);}
 }
 
 // ════════ API ════════
-async function apiGet(accion,params={}){
-  const u=new URL(SCRIPT_URL);
-  u.searchParams.set('accion',accion);
-  u.searchParams.set('email',currentUser.email);
-  Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
-  const r=await fetch(u.toString(),{method:'GET',cache:'no-store'});
-  const t=await r.text(); try{return JSON.parse(t);}catch(e){return {raw:t};}
+async function apiPost(accion,datos={}){
+  if(!hasToken()) throw new Error('Sesión expirada. Inicia sesión nuevamente.');
+  const r=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({accion,token:currentUser.idToken,datos}),cache:'no-store'});
+  const t=await r.text();
+  let parsed; try{parsed=JSON.parse(t);}catch(e){parsed={raw:t};}
+  if(parsed&&parsed.error&&/token|autorizado|sesión|dominio/i.test(parsed.error)) throw new Error(parsed.error);
+  return parsed;
 }
-async function apiPost(accion,datos){
-  const r=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({accion,email:currentUser.email,datos}),cache:'no-store'});
-  const t=await r.text(); try{return JSON.parse(t);}catch(e){return {ok:true,raw:t};}
+async function apiGet(accion,params={}){return apiPost(accion,params);}
+function handleAuthError(e){
+  const msg=e&&e.message?e.message:String(e||'');
+  if(/token|autorizado|sesión|dominio/i.test(msg)){
+    clearSession();
+    usuarios=[]; modulos=[];
+    document.getElementById('hub').style.display='none';
+    document.getElementById('login').style.display='flex';
+    document.getElementById('btn-config').style.display='none';
+    toast('Sesión vencida o no autorizada. Inicia sesión nuevamente.',true);
+    return true;
+  }
+  return false;
 }
 
 // ════════ ENTER HUB ════════
 function enterHub(){
   document.getElementById('login').style.display='none';
   document.getElementById('hub').style.display='flex';
+  document.getElementById('btn-config').style.display='none';
   document.getElementById('hello-name').textContent=(currentUser.nombre||'').split(' ')[0]||'';
-  document.getElementById('tb-avatar').textContent=iniciales(currentUser.nombre);
-  if(currentUser.rol==='Admin') document.getElementById('btn-config').style.display='flex';
+  document.getElementById('tb-avatar').textContent=iniciales(currentUser.nombre||currentUser.email);
   const c=loadCache();
-  if(c){modulos=c.modulos||[];usuarios=c.usuarios||[];renderModulos();}
+  if(c&&Array.isArray(c.modulos)){modulos=c.modulos;renderModulos();}
   loadData();
 }
 async function loadData(){
   try{
-    const [rM, rP] = await Promise.all([
-      apiGet('getModulos'),
-      apiGet('getPerfil')
-    ]);
-    if(rM&&!rM.error&&Array.isArray(rM)) modulos=rM;
-    // confirmar rol real desde el backend (por si el usuario es Admin en la hoja)
-    if(rP&&rP.ok&&rP.usuario&&rP.usuario.Rol){
-      currentUser.rol=rP.usuario.Rol; saveSession(currentUser);
-      document.getElementById('btn-config').style.display = currentUser.rol==='Admin'?'flex':'none';
+    const [rP,rM]=await Promise.all([apiPost('getPerfil'),apiPost('getModulos')]);
+    if(rP&&rP.ok&&rP.usuario){
+      currentUser.nombre=rP.usuario.Nombre||currentUser.nombre;
+      currentUser.email=(rP.usuario.Email||currentUser.email).toLowerCase();
+      currentUser.rol=rP.usuario.Rol||'Editor';
+      saveSession(currentUser);
+      document.getElementById('hello-name').textContent=(currentUser.nombre||'').split(' ')[0]||'';
+      document.getElementById('tb-avatar').textContent=iniciales(currentUser.nombre||currentUser.email);
+      document.getElementById('btn-config').style.display=currentUser.rol==='Admin'?'flex':'none';
     }
-    if(currentUser.rol==='Admin'){const rU=await apiGet('getUsuarios'); if(rU&&!rU.error&&Array.isArray(rU)) usuarios=rU;}
-    saveCache(); renderModulos();
-  }catch(e){toast('No se pudo conectar. Mostrando datos guardados.',true);}
+    if(rM&&!rM.error&&Array.isArray(rM)) modulos=rM;
+    usuarios=[];
+    if(currentUser.rol==='Admin'){
+      const rU=await apiPost('getUsuarios');
+      if(rU&&!rU.error&&Array.isArray(rU)) usuarios=rU;
+    }
+    saveCache();
+    renderModulos();
+  }catch(e){
+    if(!handleAuthError(e)) toast('No se pudo conectar. Mostrando datos guardados.',true);
+  }
 }
-
 function iniciales(n){return (n||'?').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();}
 function esActivo(v){if(v===''||v==null)return true;if(v===true)return true;const s=String(v).trim().toLowerCase();return s==='true'||s==='sí'||s==='si'||s==='1'||s==='verdadero';}
 
 // ════════ RENDER MÓDULOS ════════
-function normalizarURLModulo(url){
+function safeModuleURL(url){
   try{
-    const destino=String(url||'').trim();
-    if(!/^https?:\/\//i.test(destino)) return '';
-    return destino;
+    const raw=String(url||'').trim();
+    if(!raw) return '';
+    const u=new URL(raw);
+    if(u.protocol!=='https:') return '';
+    if(Array.isArray(ALLOWED_MODULE_HOSTS)&&ALLOWED_MODULE_HOSTS.length&&!ALLOWED_MODULE_HOSTS.includes(u.hostname)) return '';
+    return u.href;
   }catch(e){return '';}
 }
 function renderModulos(){
   const grid=document.getElementById('mod-grid');
-  const activos=modulos.filter(m=>esActivo(m.Activo));
-  if(!activos.length){grid.innerHTML='<div class="empty">No hay módulos disponibles.</div>';return;}
-  grid.innerHTML=activos.map(m=>{
-    const url=normalizarURLModulo(m.URL);
+  const visibles=currentUser&&currentUser.rol==='Admin'?modulos:modulos.filter(m=>esActivo(m.Activo));
+  if(!visibles.length){grid.innerHTML='<div class="empty">No hay módulos disponibles.</div>';return;}
+  grid.innerHTML=visibles.map(m=>{
+    const url=safeModuleURL(m.URL);
     const soon=!url;
     const contenido=`
       ${soon?'<span class="mod-soon">Próximamente</span>':''}
@@ -416,17 +449,19 @@ function renderModulos(){
       <div class="mod-bar"></div>`;
     return soon
       ? `<div class="mod-card inactivo">${contenido}</div>`
-      : `<a class="mod-card" href="${escapeHTML(url)}" aria-label="Abrir ${escapeHTML(m.Nombre)||'módulo'}">${contenido}</a>`;
+      : `<a class="mod-card" href="${escapeAttr(url)}" aria-label="Abrir ${escapeAttr(m.Nombre||'módulo')}">${contenido}</a>`;
   }).join('');
 }
 function abrirModulo(url){
-  const destino=normalizarURLModulo(url);
-  if(!destino){toast('URL del módulo inválida o vacía',true);return;}
-  window.location.assign(destino);
+  const safe=safeModuleURL(url);
+  if(!safe){toast('URL no permitida o vacía',true);return;}
+  window.location.assign(safe);
 }
 
 // ════════ CONFIG MODAL ════════
-function openConfig(){
+async function openConfig(){
+  if(!currentUser||currentUser.rol!=='Admin'){toast('Requiere rol Admin',true);return;}
+  if(!usuarios.length){try{const rU=await apiPost('getUsuarios');if(Array.isArray(rU))usuarios=rU;}catch(e){if(!handleAuthError(e))toast('No se pudieron cargar usuarios',true);}}
   renderConfigModulos();renderConfigUsuarios();
   document.getElementById('head-btn-mod').style.display='inline-flex';
   document.getElementById('head-btn-usr').style.display='none';
@@ -448,11 +483,12 @@ function renderConfigModulos(){
     return `<tr>
       <td class="em">${escapeHTML(m.Emoji)||'📦'}</td>
       <td style="font-weight:600;">${escapeHTML(m.Nombre)||'—'}</td>
-      <td class="url-cell" title="${escapeHTML(url)}">${url==='—'?'—':escapeHTML(url)}</td>
+      <td class="url-cell" title="${escapeAttr(url)}">${url==='—'?'—':escapeHTML(url)}</td>
       <td><span class="badge ${esActivo(m.Activo)?'b-active':'b-inactive'}">${esActivo(m.Activo)?'Activo':'Inactivo'}</span></td>
-      <td style="text-align:right;"><button class="row-edit" onclick='editModulo("${escapeHTML(m.ID_Modulo)}")'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
+      <td style="text-align:right;"><button class="row-edit js-edit-mod" data-id="${escapeAttr(m.ID_Modulo)}" aria-label="Editar módulo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
     </tr>`;
   }).join('');
+  tb.querySelectorAll('.js-edit-mod').forEach(b=>b.addEventListener('click',()=>editModulo(b.dataset.id)));
 }
 function renderConfigUsuarios(){
   const tb=document.getElementById('tbody-usr');
@@ -461,12 +497,13 @@ function renderConfigUsuarios(){
     const rol=u.Rol||'Editor';
     return `<tr>
       <td style="font-weight:600;">${escapeHTML(u.Nombre)||'—'}</td>
-      <td class="url-cell" title="${escapeHTML(u.Email||'')}">${escapeHTML(u.Email||'—')}</td>
+      <td class="url-cell" title="${escapeAttr(u.Email||'')}">${escapeHTML(u.Email||'—')}</td>
       <td><span class="badge ${rol==='Admin'?'b-admin':'b-editor'}">${escapeHTML(rol)}</span></td>
       <td><span class="badge ${esActivo(u.Activo)?'b-active':'b-inactive'}">${esActivo(u.Activo)?'Activo':'Inactivo'}</span></td>
-      <td style="text-align:right;"><button class="row-edit" onclick='editUsuario("${escapeHTML(u.ID_Usuario)}")'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
+      <td style="text-align:right;"><button class="row-edit js-edit-usr" data-id="${escapeAttr(u.ID_Usuario)}" aria-label="Editar usuario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
     </tr>`;
   }).join('');
+  tb.querySelectorAll('.js-edit-usr').forEach(b=>b.addEventListener('click',()=>editUsuario(b.dataset.id)));
 }
 
 // ════════ FORM MÓDULO ════════
@@ -494,14 +531,9 @@ function editModulo(id){
   openOv('ov-modulo');
 }
 async function saveModulo(){
-  const datos={
-    Nombre:document.getElementById('md-nombre').value.trim(),
-    URL:document.getElementById('md-url').value.trim(),
-    Emoji:document.getElementById('md-emoji').value.trim(),
-    Descripcion:document.getElementById('md-desc').value.trim(),
-    Activo:getToggle('md-activo')
-  };
+  const datos={Nombre:document.getElementById('md-nombre').value.trim(),URL:document.getElementById('md-url').value.trim(),Emoji:document.getElementById('md-emoji').value.trim(),Descripcion:document.getElementById('md-desc').value.trim(),Activo:getToggle('md-activo')};
   if(!datos.Nombre){toast('Escribe el nombre',true);return;}
+  if(datos.URL&&!safeModuleURL(datos.URL)){toast('La URL debe ser HTTPS y de un dominio permitido',true);return;}
   const btn=document.getElementById('md-save'); btn.disabled=true; btn.textContent='Guardando...';
   try{
     if(editingModulo){
@@ -515,8 +547,8 @@ async function saveModulo(){
       toast('Módulo creado');
     }
     saveCache(); renderModulos(); renderConfigModulos(); closeOv('ov-modulo');
-    setTimeout(loadData,1500);
-  }catch(e){toast('No se pudo guardar: '+(e.message||'error'),true);}
+    await loadData();
+  }catch(e){if(!handleAuthError(e))toast('No se pudo guardar: '+(e.message||'error'),true);}
   finally{btn.disabled=false; btn.textContent='Guardar';}
 }
 
@@ -541,13 +573,9 @@ function editUsuario(id){
   openOv('ov-usuario');
 }
 async function saveUsuario(){
-  const datos={
-    Nombre:document.getElementById('us-nombre').value.trim(),
-    Email:document.getElementById('us-email').value.trim(),
-    Rol:document.getElementById('us-rol').value,
-    Activo:getToggle('us-activo')
-  };
+  const datos={Nombre:document.getElementById('us-nombre').value.trim(),Email:document.getElementById('us-email').value.trim().toLowerCase(),Rol:document.getElementById('us-rol').value,Activo:getToggle('us-activo')};
   if(!datos.Nombre||!datos.Email){toast('Completa nombre y email',true);return;}
+  if(!datos.Email.endsWith('@'+DOMAIN)){toast('El email debe ser @'+DOMAIN,true);return;}
   const btn=document.getElementById('us-save'); btn.disabled=true; btn.textContent='Guardando...';
   try{
     if(editingUsuario){
@@ -560,57 +588,44 @@ async function saveUsuario(){
       usuarios.push({ID_Usuario:(r&&r.id)||'tmp_'+Date.now(),...datos});
       toast('Usuario creado');
     }
-    saveCache(); renderConfigUsuarios(); closeOv('ov-usuario');
-    setTimeout(loadData,1500);
-  }catch(e){toast('No se pudo guardar: '+(e.message||'error'),true);}
+    renderConfigUsuarios(); closeOv('ov-usuario');
+    await loadData();
+  }catch(e){if(!handleAuthError(e))toast('No se pudo guardar: '+(e.message||'error'),true);}
   finally{btn.disabled=false; btn.textContent='Guardar';}
 }
 
 // ════════ HELPERS ════════
-function escapeHTML(str) {
-  if (typeof str !== 'string') return str || '';
-  return str.replace(/[&<>"']/g, function(m) {
-    switch (m) {
-      case '&': return '&amp;';
-      case '<': return '&lt;';
-      case '>': return '&gt;';
-      case '"': return '&quot;';
-      case "'": return '&#039;';
-      default: return m;
-    }
-  });
-}
+function escapeHTML(str){if(typeof str!=='string')return str||'';return str.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
+function escapeAttr(str){return escapeHTML(String(str||''));}
 function openOv(id){
-  const el = document.getElementById(id);
+  const el=document.getElementById(id);
   el.classList.add('open');
   document.body.style.overflow='hidden';
   if(!el.dataset.listenerAdded){
-    el.addEventListener('click', (e) => {
-      if(e.target === el) closeOv(id);
-    });
-    el.dataset.listenerAdded = 'true';
+    el.addEventListener('click',e=>{if(e.target===el)closeOv(id);});
+    el.dataset.listenerAdded='true';
   }
 }
-function closeOv(id){document.getElementById(id).classList.remove('open');document.body.style.overflow='';}
-function logout(){clearSession();cancelPrompt();location.reload();}
+function closeOv(id){
+  const el=document.getElementById(id); if(el)el.classList.remove('open');
+  document.body.style.overflow=document.querySelector('.ov.open')?'hidden':'';
+}
+function closeTopOverlay(){const open=[...document.querySelectorAll('.ov.open')];if(open.length)closeOv(open[open.length-1].id);}
+function logout(){clearSession();clearCache();cancelPrompt();location.reload();}
 function cancelPrompt(){try{if(window.google&&google.accounts&&google.accounts.id){google.accounts.id.cancel();google.accounts.id.disableAutoSelect();}}catch(e){}}
-function toast(msg,err){const t=document.getElementById('toast');t.textContent=msg;t.className='show'+(err?' error':'');setTimeout(()=>t.className='',2800);}
+function toast(msg,err){const t=document.getElementById('toast');clearTimeout(toastTimer);t.textContent=msg;t.className='show'+(err?' error':'');toastTimer=setTimeout(()=>t.className='',3200);}
 
 // ════════ INIT ════════
 window.addEventListener('load',()=>{
   document.getElementById('login-logo').innerHTML=logoSVG(120);
   document.getElementById('tb-logo').innerHTML=logoSVG(44);
   const s=loadSession();
-  if(s){currentUser=s;enterHub();return;}
-  // sin sesión: renderizar el botón oficial de Google usando callback o timeout seguro
+  if(s&&s.idToken){currentUser=s;enterHub();return;}
+  clearSession();
   initGoogleOnce();
-  setTimeout(()=>{
-    if(!gInit){
-      const fb=document.getElementById('gbtn-fallback');
-      if(fb) fb.style.display='inline-flex';
-    }
-  },3000);
+  setTimeout(()=>{if(!gInit){const fb=document.getElementById('gbtn-fallback');if(fb)fb.style.display='inline-flex';}},3000);
 });
+window.addEventListener('keydown',e=>{if(e.key==='Escape')closeTopOverlay();});
 </script>
 </body>
 </html>

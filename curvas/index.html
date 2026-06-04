@@ -384,6 +384,17 @@
 
   /* ── SPINNER ── */
   .spinner{width:36px;height:36px;border:3px solid rgba(24,174,151,0.2);border-top-color:#18AE97;border-radius:50%;animation:spin 0.7s linear infinite;margin:50px auto;}
+
+  /* ══ FIX SEGURIDAD / PERFORMANCE / MOBILE ══ */
+  @media(max-width:420px){
+    .alert-grid,.acc-grid{grid-template-columns:1fr!important;}
+    .main{padding-left:14px;padding-right:14px;}
+    .dist-panel,.stat-card,.tbl-wrap,.alert-card,.curve-wrap{border-radius:20px;}
+  }
+  .btn:focus-visible,.bn-item:focus-visible,.hdr-circle:focus-visible,.icon-btn:focus-visible,.modal-close:focus-visible,.curve-dl:focus-visible{outline:3px solid rgba(11,195,255,.35);outline-offset:3px;}
+  .btn:disabled{opacity:.62;cursor:not-allowed;transform:none!important;}
+  #toast{bottom:calc(96px + env(safe-area-inset-bottom));}
+
 </style>
 </head>
 <body>
@@ -658,7 +669,8 @@
 const SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbzRwDmkM8a5wra8YsIUgJH6Rg2nrogI4zhm8ODESZuMvv0L8jbRKlh3hdenw3XGHo3x/exec';
 const HUB_URL     = 'https://comunicacion-hub.github.io/cuidame/';
 const ADMIN_EMAIL = 'comunicacion@redesconrostro.org';
-const SESSION_KEY = 'rcr_hub_session';
+const SESSION_KEY = 'rcr_hub_session_v2';
+const LEGACY_SESSION_KEY = 'rcr_hub_session';
 const CACHE_KEY   = 'rcr_salud360_cache';
 const CACHE_TTL   = 5 * 60 * 1000;
 
@@ -728,33 +740,73 @@ function estadoLabel(e){
 }
 
 // ════════════ CACHE / SESSION ════════════
-function saveCache(){try{localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),ninos,mediciones,comunidades,usuarios}));}catch(e){}}
-function loadCache(){try{const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}');if(!c.ts||Date.now()-c.ts>CACHE_TTL)return null;return c;}catch(e){return null;}}
-function loadSession(){try{const s=sessionStorage.getItem(SESSION_KEY);return s?JSON.parse(s):null;}catch(e){return null;}}
-function clearSession(){try{sessionStorage.removeItem(SESSION_KEY);}catch(e){}}
-
-// El login se hace en el hub CuidaMe. Este módulo solo lee la sesión compartida.
-
-// ════════════ API ════════════
-async function apiGet(accion, params={}){
-  const u=new URL(SCRIPT_URL);
-  u.searchParams.set('accion',accion);
-  u.searchParams.set('email',currentUser.email);
-  Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
-  const r=await fetch(u.toString(),{method:'GET',cache:'no-store'});
-  return r.json();
+function escapeHTML(str){
+  if(typeof str!=='string') return str==null?'':String(str);
+  return str.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 }
-async function apiPost(accion, datos){
+function escapeAttr(str){return escapeHTML(String(str||''));}
+function cacheKey(){return currentUser&&currentUser.email?`${CACHE_KEY}:${currentUser.email}`:CACHE_KEY;}
+function saveCache(){
+  try{
+    if(!currentUser||!currentUser.email) return;
+    // No guardar usuarios en localStorage. Contiene datos sensibles y no se usa en el inicio.
+    localStorage.setItem(cacheKey(),JSON.stringify({ts:Date.now(),ninos,mediciones,comunidades}));
+  }catch(e){}
+}
+function loadCache(){
+  try{
+    const c=JSON.parse(localStorage.getItem(cacheKey())||'{}');
+    if(!c.ts||Date.now()-c.ts>CACHE_TTL) return null;
+    return c;
+  }catch(e){return null;}
+}
+function clearCache(){
+  try{
+    Object.keys(localStorage).filter(k=>k===CACHE_KEY||k.startsWith(CACHE_KEY+':')).forEach(k=>localStorage.removeItem(k));
+  }catch(e){}
+}
+function loadSession(){
+  try{
+    const s=sessionStorage.getItem(SESSION_KEY) || sessionStorage.getItem(LEGACY_SESSION_KEY);
+    return s?JSON.parse(s):null;
+  }catch(e){return null;}
+}
+function clearSession(){
+  try{
+    sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(LEGACY_SESSION_KEY);
+  }catch(e){}
+}
+function hasToken(){return !!(currentUser&&currentUser.idToken);}
+function handleAuthError(e){
+  const msg=e&&e.message?e.message:String(e||'');
+  if(/token|autorizado|sesión|dominio|unauthorized|forbidden|no autorizado/i.test(msg)){
+    clearSession();
+    toast('Sesión vencida o no autorizada. Vuelve a iniciar sesión desde el Hub.',true);
+    setTimeout(()=>{window.location.href=HUB_URL;},900);
+    return true;
+  }
+  return false;
+}
+// El login se hace en el hub CuidaMe. Este módulo exige la sesión segura con idToken.
+// ════════════ API ════════════
+async function apiPost(accion, datos={}){
+  if(!hasToken()) throw new Error('Sesión expirada. Inicia sesión nuevamente.');
   const r=await fetch(SCRIPT_URL,{
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify({accion,email:currentUser.email,datos}),
+    body:JSON.stringify({accion,token:currentUser.idToken,datos}),
     cache:'no-store'
   });
   const txt=await r.text();
-  try{return JSON.parse(txt);}catch(e){return {ok:true,raw:txt};}
+  let data; try{data=JSON.parse(txt);}catch(e){data={raw:txt};}
+  if(data&&data.error) throw new Error(data.error);
+  return data;
 }
-
+async function apiGet(accion, params={}){
+  // Por seguridad no enviamos tokens en query string. Las lecturas también viajan por POST.
+  return apiPost(accion, params);
+}
 // ════════════ ENTER APP / LOAD ════════════
 function enterApp(){
   document.getElementById('login-screen').style.display='none';
@@ -762,22 +814,26 @@ function enterApp(){
   const hoy=new Date().toLocaleDateString('es-EC',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   document.getElementById('today-date').textContent=hoy.charAt(0).toUpperCase()+hoy.slice(1);
   const c=loadCache();
-  if(c){ninos=c.ninos||[];mediciones=c.mediciones||[];comunidades=c.comunidades||[];usuarios=c.usuarios||[];renderAll();}
+  if(c){
+    ninos=c.ninos||[];
+    mediciones=c.mediciones||[];
+    comunidades=c.comunidades||[];
+    renderCurrentScreen();
+  }
   reloadAll();
 }
 async function reloadAll(){
   const btn=document.getElementById('btn-sync'); btn&&btn.classList.add('syncing');
   try{
     const [rN,rM,rC] = await Promise.all([apiGet('getNinos'),apiGet('getMediciones'),apiGet('getComunidades')]);
-    if(rN&&!rN.error) ninos=rN;
-    if(rM&&!rM.error) mediciones=rM;
-    if(rC&&!rC.error) comunidades=rC;
-    if(currentUser.rol==='Admin'){const rU=await apiGet('getUsuarios'); if(rU&&!rU.error) usuarios=rU;}
-    saveCache(); renderAll();
-  }catch(e){toast('No se pudo conectar. Mostrando datos guardados.',true);}
+    if(rN&&!rN.error) ninos=Array.isArray(rN)?rN:[];
+    if(rM&&!rM.error) mediciones=Array.isArray(rM)?rM:[];
+    if(rC&&!rC.error) comunidades=Array.isArray(rC)?rC:[];
+    // Usuarios no se cargan en el arranque para acelerar y reducir exposición de datos.
+    saveCache(); renderCurrentScreen();
+  }catch(e){if(!handleAuthError(e)) toast('No se pudo conectar. Mostrando datos guardados.',true);}
   finally{btn&&btn.classList.remove('syncing');}
 }
-
 // ════════════ DERIVED DATA ════════════
 function ultimaMedicion(idNino){
   const ms=mediciones.filter(m=>m.ID_Niño===idNino).sort((a,b)=>new Date(b.Fecha)-new Date(a.Fecha));
@@ -811,7 +867,12 @@ function avatarGrad(nombre){
 function iniciales(nombre){return (nombre||'?').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();}
 
 // ════════════ RENDER ALL ════════════
-function renderAll(){renderAlertas();renderFichasList();renderInfantes();}
+function renderAll(){renderCurrentScreen();}
+function renderCurrentScreen(){
+  if(currentScreen==='alertas') renderAlertas();
+  else if(currentScreen==='fichas') renderFichasList();
+  else if(currentScreen==='infantes') renderInfantes();
+}
 
 // ─── ALERTAS ───
 function renderAlertas(){
@@ -861,7 +922,7 @@ function renderAlertas(){
     return `<div class="alert-card ${e.estado}" onclick="abrirFicha('${e.n.ID_Niño}')">
       <div class="alert-head">
         <div class="avatar" style="background:${avatarGrad(e.n.Nombres)}">${iniciales(e.n.Nombres)}</div>
-        <div><div class="alert-name">${e.n.Nombres}</div><div class="alert-meta">${e.n.Comunidad||'—'} · ${metaTxt}</div></div>
+        <div><div class="alert-name">${escapeHTML(e.n.Nombres)}</div><div class="alert-meta">${escapeHTML(e.n.Comunidad||'—')} · ${metaTxt}</div></div>
       </div>
       <div class="alert-z-row">
         <div class="z-chip"><div class="z-chip-lbl">Talla / Edad</div><div class="z-chip-val">${e.zT==null?'—':fmtNum(e.zT)}</div>${zTtag}</div>
@@ -908,10 +969,10 @@ function rowInfante(n){
   const edadAct = edadTexto(edadMeses(n.Fecha_Nacimiento,new Date()));
   const obs = n.Observaciones && String(n.Observaciones).trim() ? String(n.Observaciones) : '—';
   return `<div class="tbl-row tbl-row-inf" onclick="verInfante('${n.ID_Niño}')">
-    <div class="col-name"><div class="avatar" style="background:${avatarGrad(n.Nombres)}">${iniciales(n.Nombres)}</div><span>${n.Nombres}</span></div>
-    <div class="col-txt cell-com">${n.Comunidad||'—'}</div>
+    <div class="col-name"><div class="avatar" style="background:${avatarGrad(n.Nombres)}">${iniciales(n.Nombres)}</div><span>${escapeHTML(n.Nombres)}</span></div>
+    <div class="col-txt cell-com">${escapeHTML(n.Comunidad||'—')}</div>
     <div class="col-txt cell-edad">${edadAct}</div>
-    <div class="col-txt cell-obs" title="${obs}">${obs}</div>
+    <div class="col-txt cell-obs" title="${escapeHTML(obs)}">${escapeHTML(obs)}</div>
     <div class="row-acts">
       <button class="icon-btn" title="Ver" onclick="event.stopPropagation();verInfante('${n.ID_Niño}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
       <button class="icon-btn" title="Editar" onclick="event.stopPropagation();editInfante('${n.ID_Niño}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
@@ -926,8 +987,8 @@ function rowNino(n, esFicha){
   const badge=`<span class="badge badge-${est.estado}">${estadoLabel(est.estado)}</span>`;
   const acts = `<button class="icon-btn" title="Ver ficha" onclick="event.stopPropagation();abrirFicha('${n.ID_Niño}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></button>`;
   return `<div class="tbl-row" onclick="abrirFicha('${n.ID_Niño}')">
-    <div class="col-name"><div class="avatar" style="background:${avatarGrad(n.Nombres)}">${iniciales(n.Nombres)}</div><span>${n.Nombres}</span></div>
-    <div class="col-txt cell-com">${n.Comunidad||'—'}</div>
+    <div class="col-name"><div class="avatar" style="background:${avatarGrad(n.Nombres)}">${iniciales(n.Nombres)}</div><span>${escapeHTML(n.Nombres)}</span></div>
+    <div class="col-txt cell-com">${escapeHTML(n.Comunidad||'—')}</div>
     <div class="col-txt cell-edad">${edad}</div>
     <div class="cell-estado">${badge}</div>
     <div class="row-acts">${acts}</div>
@@ -955,7 +1016,7 @@ function abrirFicha(id){
   document.getElementById('fd-avatar').textContent=iniciales(n.Nombres);
   document.getElementById('fd-name').textContent=n.Nombres;
   const sexoTxt = n.Sexo==='M'?'Niño':n.Sexo==='F'?'Niña':'—';
-  document.getElementById('fd-meta').textContent=`${sexoTxt} · ${n.Comunidad||'—'} · Nac. ${fmtFecha(n.Fecha_Nacimiento)}`;
+  document.getElementById('fd-meta').textContent=`${sexoTxt} · ${escapeHTML(n.Comunidad||'—')} · Nac. ${fmtFecha(n.Fecha_Nacimiento)}`;
   renderHistorial();
   drawCurves();
 }
@@ -1109,7 +1170,7 @@ function desactivarInfante(id){
       const idx=ninos.findIndex(x=>x.ID_Niño===id); if(idx>=0) ninos[idx].Activo=false;
       saveCache(); toast('Infante desactivado'); renderAll();
       setTimeout(reloadAll,1500);
-    }catch(e){toast('No se pudo desactivar: '+(e.message||'error'),true);}
+    }catch(e){if(!handleAuthError(e)) toast('No se pudo desactivar: '+(e.message||'error'),true);}
   });
 }
 async function saveInfante(){
@@ -1136,7 +1197,7 @@ async function saveInfante(){
     }
     saveCache(); renderAll(); closeModal('m-infante');
     setTimeout(reloadAll, 1500);
-  }catch(e){toast('No se pudo guardar: '+(e.message||'error'),true);}
+  }catch(e){if(!handleAuthError(e)) toast('No se pudo guardar: '+(e.message||'error'),true);}
   finally{btn.disabled=false; btn.textContent='Guardar';}
 }
 
@@ -1182,7 +1243,7 @@ function delMedicion(id){
       saveCache(); toast('Medición eliminada');
       renderHistorial(); drawCurves(); renderAll();
       setTimeout(reloadAll,1500);
-    }catch(e){toast('No se pudo eliminar: '+(e.message||'error'),true);}
+    }catch(e){if(!handleAuthError(e)) toast('No se pudo eliminar: '+(e.message||'error'),true);}
   });
 }
 // convierte texto con coma o punto a número (7,4 → 7.4)
@@ -1245,7 +1306,7 @@ async function saveMedicion(){
     closeModal('m-medicion');
     renderHistorial(); drawCurves(); renderAll();
     setTimeout(reloadAll, 1500);
-  }catch(e){toast('No se pudo guardar: '+(e.message||'error de red'),true);}
+  }catch(e){if(!handleAuthError(e)) toast('No se pudo guardar: '+(e.message||'error de red'),true);}
   finally{btn.disabled=false; btn.textContent=txtOrig;}
 }
 
@@ -1340,6 +1401,7 @@ function go(screen){
   document.getElementById('screen-'+screen).classList.add('active');
   document.querySelectorAll('.bn-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('nav-'+screen).classList.add('active');
+  renderCurrentScreen();
   window.scrollTo(0,0);
 }
 function openModal(id){document.getElementById(id).classList.add('open');document.body.style.overflow='hidden';}
@@ -1348,7 +1410,7 @@ function askConfirm(title,msg,cb){document.getElementById('cf-title').textConten
 function confirmAction(){if(confirmCb)confirmCb();closeModal('m-confirm');}
 
 function irAlHub(){window.location.href=HUB_URL;}
-function doLogout(){clearSession();window.location.href=HUB_URL;}
+function doLogout(){clearSession();clearCache();window.location.href=HUB_URL;}
 function toast(msg,err){const t=document.getElementById('toast');t.textContent=msg;t.className='show'+(err?' error':'');setTimeout(()=>t.className='',2800);}
 function fmtFecha(f){if(!f)return'—';const d=parseFechaLocal(f);if(!d)return f;return d.toLocaleDateString('es-EC',{day:'2-digit',month:'short',year:'numeric'});}
 function fmtInputDate(f){if(!f)return'';const d=parseFechaLocal(f);if(!d)return'';const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${dd}`;}
@@ -1356,11 +1418,13 @@ function fmtInputDate(f){if(!f)return'';const d=parseFechaLocal(f);if(!d)return'
 // ════════════ INIT ════════════
 window.addEventListener('load',()=>{
   const s=loadSession();
-  if(s && s.email){
-    currentUser={email:s.email, nombre:s.nombre||s.email, rol:s.rol||'Editor'};
+  const email=(s&&(s.email||s.Email)||'').toLowerCase();
+  const idToken=s&&(s.idToken||s.token||'');
+  if(email && idToken){
+    currentUser={email,nombre:s.nombre||s.Nombre||email,rol:s.rol||s.Rol||'Editor',picture:s.picture||'',idToken};
     enterApp();
   } else {
-    // Sin sesión del hub → redirige al hub para iniciar sesión (no hay login propio)
+    clearSession();
     window.location.href=HUB_URL;
   }
 });

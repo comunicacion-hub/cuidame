@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>CuidaMe</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleOnce()"></script>
 <style>
   :root{
     --cyan:#0BC3FF; --teal:#18AE97; --green:#9FDA60; --yellow:#F5AD21;
@@ -29,7 +29,6 @@
   .login-card{position:relative;z-index:1;width:430px;max-width:92vw;background:rgba(255,255,255,0.96);border:1px solid rgba(255,255,255,0.9);border-radius:32px;padding:56px 48px 40px;display:flex;flex-direction:column;align-items:center;box-shadow:0 30px 90px rgba(13,140,160,0.12),0 4px 16px rgba(0,0,0,0.04);}
   .login-logo{width:118px;margin-bottom:10px;}
   .login-title{font-size:40px;font-weight:600;letter-spacing:-1px;line-height:1;margin:4px 0 28px;background:linear-gradient(100deg,#0dbfeb 0%,#16a89f 45%,#9fda60 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
-  .login-title .c1{color:#0BC3FF;}.login-title .c2{color:#18AE97;}.login-title .c3{color:#9FDA60;}
 
   .gbtn-wrap{min-height:48px;display:flex;flex-direction:column;align-items:center;width:100%;}
   .gbtn-fallback{display:inline-flex;align-items:center;gap:12px;background:#fff;color:#3c4043;border:1px solid #e3e6e8;border-radius:14px;padding:13px 26px;font-family:'Outfit',sans-serif;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.06);transition:all 0.15s;}
@@ -39,18 +38,17 @@
 
   /* ══ HUB ══ */
   #hub{display:none;min-height:100vh;flex-direction:column;}
-  .topbar{background:#fff;height:84px;display:flex;align-items:center;justify-content:space-between;padding:0 48px;box-shadow:0 1px 0 rgba(0,0,0,0.04);position:relative;}
+  .topbar{background:#fff;height:calc(84px + env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;padding:env(safe-area-inset-top) calc(48px + env(safe-area-inset-right)) 0 calc(48px + env(safe-area-inset-left));box-shadow:0 1px 0 rgba(0,0,0,0.04);position:relative;}
 
   .tb-brand{display:flex;align-items:center;gap:12px;}
   .tb-logo{width:42px;display:flex;align-items:center;}
   .tb-name{font-size:24px;font-weight:600;letter-spacing:-0.5px;background:linear-gradient(100deg,#0dbfeb 0%,#16a89f 45%,#9fda60 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
-  .tb-name .c1{color:#0BC3FF;}.tb-name .c2{color:#18AE97;}.tb-name .c3{color:#9FDA60;}
   .tb-right{display:flex;align-items:center;gap:12px;}
   .tb-avatar{width:48px;height:48px;border-radius:50%;background:var(--grad-teal);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;letter-spacing:0.5px;}
-  .tb-logout{width:48px;height:48px;border-radius:50%;background:#eef4fb;border:none;color:#5a6b72;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+  .tb-logout{width:48px;height:48px;border-radius:50%;background:#eef4fb;border:none;color:#5a6b72;font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background-color 0.15s, color 0.15s;}
   .tb-logout:hover{background:#e2ebf3;color:var(--text);}
   .tb-logout svg{width:20px;height:20px;}
-  @media(max-width:768px){.topbar{height:70px;padding:0 20px;}.tb-logo{width:36px;}.tb-name{font-size:20px;}.tb-avatar,.tb-logout{width:42px;height:42px;}}
+  @media(max-width:768px){.topbar{height:calc(70px + env(safe-area-inset-top));padding:env(safe-area-inset-top) calc(20px + env(safe-area-inset-right)) 0 calc(20px + env(safe-area-inset-left));}.tb-logo{width:36px;}.tb-name{font-size:20px;}.tb-avatar,.tb-logout{width:42px;height:42px;}}
 
   .hub-body{flex:1;max-width:1180px;width:100%;margin:0 auto;padding:54px 48px 80px;}
   @media(max-width:768px){.hub-body{padding:34px 20px 60px;}}
@@ -61,9 +59,9 @@
 
   .sec-row{display:flex;align-items:center;gap:14px;margin:46px 0 22px;}
   .sec-label{font-size:13px;font-weight:700;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;}
-  .sec-config{width:34px;height:34px;border-radius:50%;background:#fff;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);transition:all 0.15s;box-shadow:var(--shadow-soft);}
+  .sec-config{width:44px;height:44px;border-radius:50%;background:#fff;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);transition:background-color 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s;box-shadow:var(--shadow-soft);}
   .sec-config:hover{color:var(--teal);transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,0.08);}
-  .sec-config svg{width:17px;height:17px;}
+  .sec-config svg{width:20px;height:20px;}
 
   .mod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:22px;}
   .mod-card{background:#fff;border-radius:24px;padding:28px 26px 24px;box-shadow:var(--shadow);cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;position:relative;overflow:hidden;display:flex;flex-direction:column;min-height:180px;}
@@ -82,15 +80,15 @@
   .ov.open{display:flex;}
   .modal{background:#fff;width:100%;max-width:760px;max-height:calc(100dvh - 48px);border-radius:24px;display:flex;flex-direction:column;box-shadow:0 30px 90px rgba(0,0,0,0.2);overflow:hidden;}
   @media(max-width:768px){.ov{padding:0;}.modal{max-width:100%;height:100dvh;max-height:100dvh;border-radius:0;}}
-  .modal-head{padding:22px 26px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+  .modal-head{padding:22px 26px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;}
   .modal-title{font-size:20px;font-weight:700;display:flex;align-items:center;gap:9px;}
   .modal-title svg{width:20px;height:20px;color:var(--text-muted);}
-  .modal-x{width:38px;height:38px;border-radius:50%;background:#eef4fb;border:none;cursor:pointer;font-size:17px;color:#5a6b72;transition:all 0.15s;}
+  .modal-x{width:38px;height:38px;border-radius:50%;background:#eef4fb;border:none;cursor:pointer;font-size:17px;color:#5a6b72;transition:background-color 0.15s, color 0.15s;}
   .modal-x:hover{background:#e2ebf3;color:var(--text);}
-  .modal-body{flex:1;overflow-y:auto;}
+  .modal-body{flex:1;overflow-y:auto;padding-left:calc(env(safe-area-inset-left) + 4px);padding-right:calc(env(safe-area-inset-right) + 4px);}
 
-  .tabs{display:flex;gap:6px;padding:14px 26px 0;border-bottom:1px solid var(--border);}
-  .tab{padding:12px 18px;font-size:15px;font-weight:600;color:var(--text-muted);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:8px;transition:all 0.15s;background:none;border-top:none;border-left:none;border-right:none;font-family:'Outfit',sans-serif;}
+  .tabs{display:flex;gap:6px;padding:14px 26px 0;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .tab{padding:12px 18px;font-size:15px;font-weight:600;color:var(--text-muted);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:8px;transition:color 0.15s, border-color 0.15s;background:none;border-top:none;border-left:none;border-right:none;font-family:'Outfit',sans-serif;}
   .tab svg{width:16px;height:16px;}
   .tab.active{color:var(--teal);border-bottom-color:var(--teal);}
   .tab:hover:not(.active){color:var(--text);}
@@ -117,9 +115,9 @@
   .b-inactive{background:rgba(0,0,0,0.05);color:var(--text-muted);}
   .b-admin{background:rgba(11,195,255,0.12);color:#0a8fc4;}
   .b-editor{background:rgba(159,218,96,0.18);color:#5f8f1e;}
-  .row-edit{width:34px;height:34px;border-radius:50%;background:#fff;border:1px solid var(--border);cursor:pointer;color:var(--text-muted);display:inline-flex;align-items:center;justify-content:center;transition:all 0.15s;}
+  .row-edit{width:44px;height:44px;border-radius:50%;background:#fff;border:1px solid var(--border);cursor:pointer;color:var(--text-muted);display:inline-flex;align-items:center;justify-content:center;transition:background-color 0.15s, color 0.15s, box-shadow 0.15s;}
   .row-edit:hover{color:var(--teal);box-shadow:0 2px 8px rgba(0,0,0,0.08);}
-  .row-edit svg{width:15px;height:15px;}
+  .row-edit svg{width:18px;height:18px;}
 
   /* form modal */
   .fm-body{padding:24px 26px;}
@@ -143,6 +141,17 @@
   #toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);z-index:600;background:#1b2a2e;color:#fff;padding:13px 22px;border-radius:14px;font-size:14px;font-weight:500;box-shadow:0 10px 36px rgba(0,0,0,0.22);opacity:0;visibility:hidden;transition:all 0.25s;max-width:90vw;text-align:center;}
   #toast.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0);}
   #toast.error{background:#c91a44;}
+
+  /* ══ FIXES FRONTEND SEGURO / MOBILE / ACCESIBILIDAD ══ */
+  @media(max-width:420px){.login-card{padding:44px 24px 34px;border-radius:26px;}.gbtn-wrap iframe{max-width:100%;}.mod-grid{grid-template-columns:1fr;gap:16px;}.mod-card{min-height:160px;padding:24px 22px;}}
+  @media(min-width:421px){.mod-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));}}
+  .mod-bar{transform:scaleX(.48);}  
+  .mod-card:hover .mod-bar,.mod-card:focus-visible .mod-bar{transform:scaleX(1);}  
+  #toast{bottom:calc(20px + env(safe-area-inset-bottom));}
+  .btn:focus-visible,.tab:focus-visible,.sec-config:focus-visible,.tb-logout:focus-visible,.modal-x:focus-visible,.row-edit:focus-visible,.gbtn-fallback:focus-visible,.mod-card:focus-visible{outline:3px solid rgba(11,195,255,.35);outline-offset:3px;}
+  .btn:disabled{opacity:.62;cursor:not-allowed;transform:none!important;}
+  @media(max-width:560px){.modal-head{padding:18px 20px;gap:12px;}.modal-head>div:last-child{gap:8px;}.tabs{padding-left:20px;padding-right:20px;overflow-x:auto;}.tab-pane{padding:18px 20px 24px;}.fm-body{padding:20px;}.modal-foot{padding-left:20px;padding-right:20px;}.dtable{min-width:620px;}}
+
 </style>
 </head>
 <body>
@@ -174,7 +183,7 @@
     <div class="tb-right">
       <div class="tb-avatar" id="tb-avatar">CS</div>
       <button class="tb-logout" onclick="logout()" title="Cerrar sesión">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
     </div>
   </div>
@@ -211,10 +220,10 @@
     </div>
     <div class="modal-body">
       <div class="tab-pane active" id="pane-mod">
-        <table class="dtable"><thead><tr><th>Emoji</th><th>Nombre</th><th>URL</th><th>Estado</th><th></th></tr></thead><tbody id="tbody-mod"></tbody></table>
+        <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch;"><table class="dtable"><thead><tr><th>Emoji</th><th>Nombre</th><th>URL</th><th>Estado</th><th></th></tr></thead><tbody id="tbody-mod"></tbody></table></div>
       </div>
       <div class="tab-pane" id="pane-usr">
-        <table class="dtable"><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Activo</th><th></th></tr></thead><tbody id="tbody-usr"></tbody></table>
+        <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch;"><table class="dtable"><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Activo</th><th></th></tr></thead><tbody id="tbody-usr"></tbody></table></div>
       </div>
     </div>
   </div>
@@ -270,13 +279,13 @@
 const SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbxrQRJXG4RItmps9y00QGm6zZNZaM_IssRk259M6h6CDAWXdzO2Lr3HJgTLweUS7yT8/exec';
 const G_CLIENT    = '783730193199-d7nhahv3ou4rmps7nrpoop5cpor079ej.apps.googleusercontent.com';
 const DOMAIN      = 'redesconrostro.org';
-const ADMIN_EMAIL = 'comunicacion@redesconrostro.org';
-const SESSION_KEY = 'rcr_hub_session';
-const CACHE_KEY   = 'cuidame_hub_cache';
+const SESSION_KEY = 'rcr_hub_session_v2';
+const CACHE_KEY   = 'cuidame_hub_cache_v2';
 const CACHE_TTL   = 5*60*1000;
-
+const ALLOWED_MODULE_HOSTS = ['comunicacion-hub.github.io','redesconrostro.org','www.redesconrostro.org'];
 let currentUser=null, modulos=[], usuarios=[];
 let editingModulo=null, editingUsuario=null;
+let toastTimer=null;
 
 // ════════ LOGO SVG OFICIAL RCR (IDs únicos por instancia) ════════
 let _logoN=0;
@@ -300,11 +309,14 @@ function logoSVG(size){
 }
 
 // ════════ SESSION / CACHE ════════
+function cacheKey(){return currentUser&&currentUser.email?`${CACHE_KEY}:${currentUser.email}`:CACHE_KEY;}
 function saveSession(u){try{sessionStorage.setItem(SESSION_KEY,JSON.stringify(u));}catch(e){}}
 function loadSession(){try{const s=sessionStorage.getItem(SESSION_KEY);return s?JSON.parse(s):null;}catch(e){return null;}}
 function clearSession(){try{sessionStorage.removeItem(SESSION_KEY);}catch(e){}}
-function saveCache(){try{localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),modulos,usuarios}));}catch(e){}}
-function loadCache(){try{const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}');if(!c.ts||Date.now()-c.ts>CACHE_TTL)return null;return c;}catch(e){return null;}}
+function clearCache(){try{Object.keys(localStorage).filter(k=>k===CACHE_KEY||k.startsWith(CACHE_KEY+':')).forEach(k=>localStorage.removeItem(k));}catch(e){}}
+function saveCache(){try{if(!currentUser||!currentUser.email)return;localStorage.setItem(cacheKey(),JSON.stringify({ts:Date.now(),modulos}));}catch(e){}}
+function loadCache(){try{const c=JSON.parse(localStorage.getItem(cacheKey())||'{}');if(!c.ts||Date.now()-c.ts>CACHE_TTL)return null;return c;}catch(e){return null;}}
+function hasToken(){return !!(currentUser&&currentUser.idToken);}
 
 // ════════ GOOGLE LOGIN ════════
 let gInit=false;
@@ -313,96 +325,141 @@ function initGoogleOnce(){
   if(typeof google==='undefined'||!google.accounts||!google.accounts.id) return false;
   google.accounts.id.initialize({client_id:G_CLIENT,callback:onCredential,auto_select:false,cancel_on_tap_outside:true,use_fedcm_for_prompt:false});
   gInit=true;
-  // renderizar el botón oficial de Google (fiable) sobre nuestro contenedor
-  const host=document.getElementById('gbtn-google');
-  if(host){
-    host.innerHTML='';
-    try{ google.accounts.id.renderButton(host,{theme:'outline',size:'large',type:'standard',shape:'pill',text:'signin_with',width:300}); }catch(e){}
-  }
+  const renderBtn = () => {
+    const host=document.getElementById('gbtn-google');
+    if(host){
+      host.innerHTML='';
+      const w=Math.min(300, Math.max(240, host.getBoundingClientRect().width||300));
+      try{ google.accounts.id.renderButton(host,{theme:'outline',size:'large',type:'standard',shape:'pill',text:'signin_with',width:w}); }catch(e){}
+    }
+  };
+  if(document.readyState==='loading') window.addEventListener('DOMContentLoaded',renderBtn); else renderBtn();
   return true;
 }
 function startLogin(){
   if(typeof google==='undefined'){toast('Cargando Google... intenta de nuevo',true);return;}
   if(!initGoogleOnce()){toast('No se pudo iniciar Google. Recarga la página.',true);return;}
-  // si el botón oficial está visible, el usuario debe tocarlo; igual intentamos el prompt
   try{ google.accounts.id.prompt(); }catch(e){}
+}
+function decodeJwtPayload(token){
+  const payload=(token||'').split('.')[1];
+  if(!payload) throw new Error('Token incompleto');
+  const normalized=payload.replace(/-/g,'+').replace(/_/g,'/');
+  const json=decodeURIComponent(Array.prototype.map.call(atob(normalized),c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+  return JSON.parse(json);
 }
 function onCredential(resp){
   try{
     cancelPrompt();
-    const p=JSON.parse(atob(resp.credential.split('.')[1]));
-    const email=p.email||'', name=p.name||email, pic=p.picture||'';
+    if(!resp||!resp.credential) throw new Error('Sin credencial');
+    const p=decodeJwtPayload(resp.credential);
+    const email=(p.email||'').toLowerCase(), name=p.name||email, pic=p.picture||'';
     if(!email.endsWith('@'+DOMAIN)){toast('Solo cuentas @'+DOMAIN,true);return;}
-    currentUser={email,nombre:name,rol:(email===ADMIN_EMAIL?'Admin':'Editor'),picture:pic};
+    currentUser={email,nombre:name,rol:null,picture:pic,idToken:resp.credential,authAt:Date.now()};
     saveSession(currentUser);
     enterHub();
   }catch(e){toast('Error al iniciar sesión',true);}
 }
 
 // ════════ API ════════
-async function apiGet(accion,params={}){
-  const u=new URL(SCRIPT_URL);
-  u.searchParams.set('accion',accion);
-  u.searchParams.set('email',currentUser.email);
-  Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
-  const r=await fetch(u.toString(),{method:'GET',cache:'no-store'});
-  const t=await r.text(); try{return JSON.parse(t);}catch(e){return {raw:t};}
+async function apiPost(accion,datos={}){
+  if(!hasToken()) throw new Error('Sesión expirada. Inicia sesión nuevamente.');
+  const r=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({accion,token:currentUser.idToken,datos}),cache:'no-store'});
+  const t=await r.text();
+  let parsed; try{parsed=JSON.parse(t);}catch(e){parsed={raw:t};}
+  if(parsed&&parsed.error&&/token|autorizado|sesión|dominio/i.test(parsed.error)) throw new Error(parsed.error);
+  return parsed;
 }
-async function apiPost(accion,datos){
-  const r=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({accion,email:currentUser.email,datos}),cache:'no-store'});
-  const t=await r.text(); try{return JSON.parse(t);}catch(e){return {ok:true,raw:t};}
+// Compatibilidad interna: por seguridad, las lecturas también viajan por POST para no exponer tokens en query string.
+async function apiGet(accion,params={}){return apiPost(accion,params);}
+function handleAuthError(e){
+  const msg=e&&e.message?e.message:String(e||'');
+  if(/token|autorizado|sesión|dominio/i.test(msg)){
+    clearSession();
+    usuarios=[]; modulos=[];
+    document.getElementById('hub').style.display='none';
+    document.getElementById('login').style.display='flex';
+    document.getElementById('btn-config').style.display='none';
+    toast('Sesión vencida o no autorizada. Inicia sesión nuevamente.',true);
+    return true;
+  }
+  return false;
 }
 
 // ════════ ENTER HUB ════════
 function enterHub(){
   document.getElementById('login').style.display='none';
   document.getElementById('hub').style.display='flex';
+  document.getElementById('btn-config').style.display='none';
   document.getElementById('hello-name').textContent=(currentUser.nombre||'').split(' ')[0]||'';
-  document.getElementById('tb-avatar').textContent=iniciales(currentUser.nombre);
-  if(currentUser.rol==='Admin') document.getElementById('btn-config').style.display='flex';
+  document.getElementById('tb-avatar').textContent=iniciales(currentUser.nombre||currentUser.email);
   const c=loadCache();
-  if(c){modulos=c.modulos||[];usuarios=c.usuarios||[];renderModulos();}
+  if(c&&Array.isArray(c.modulos)){modulos=c.modulos;renderModulos();}
   loadData();
 }
 async function loadData(){
   try{
-    const rM=await apiGet('getModulos');
-    if(rM&&!rM.error&&Array.isArray(rM)) modulos=rM;
-    // confirmar rol real desde el backend (por si el usuario es Admin en la hoja)
-    const rP=await apiGet('getPerfil');
-    if(rP&&rP.ok&&rP.usuario&&rP.usuario.Rol){
-      currentUser.rol=rP.usuario.Rol; saveSession(currentUser);
-      document.getElementById('btn-config').style.display = currentUser.rol==='Admin'?'flex':'none';
+    const [rP,rM] = await Promise.all([apiPost('getPerfil'),apiPost('getModulos')]);
+    if(rP&&rP.ok&&rP.usuario){
+      currentUser.nombre=rP.usuario.Nombre||currentUser.nombre;
+      currentUser.email=(rP.usuario.Email||currentUser.email).toLowerCase();
+      currentUser.rol=rP.usuario.Rol||'Editor';
+      saveSession(currentUser);
+      document.getElementById('hello-name').textContent=(currentUser.nombre||'').split(' ')[0]||'';
+      document.getElementById('tb-avatar').textContent=iniciales(currentUser.nombre||currentUser.email);
+      document.getElementById('btn-config').style.display=currentUser.rol==='Admin'?'flex':'none';
     }
-    if(currentUser.rol==='Admin'){const rU=await apiGet('getUsuarios'); if(rU&&!rU.error&&Array.isArray(rU)) usuarios=rU;}
-    saveCache(); renderModulos();
-  }catch(e){toast('No se pudo conectar. Mostrando datos guardados.',true);}
+    if(rM&&!rM.error&&Array.isArray(rM)) modulos=rM;
+    usuarios=[];
+    if(currentUser.rol==='Admin'){
+      const rU=await apiPost('getUsuarios');
+      if(rU&&!rU.error&&Array.isArray(rU)) usuarios=rU;
+    }
+    saveCache();
+    renderModulos();
+  }catch(e){
+    if(!handleAuthError(e)) toast('No se pudo conectar. Mostrando datos guardados.',true);
+  }
 }
-
 function iniciales(n){return (n||'?').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();}
 function esActivo(v){if(v===''||v==null)return true;if(v===true)return true;const s=String(v).trim().toLowerCase();return s==='true'||s==='sí'||s==='si'||s==='1'||s==='verdadero';}
 
 // ════════ RENDER MÓDULOS ════════
 function renderModulos(){
   const grid=document.getElementById('mod-grid');
-  const activos=modulos.filter(m=>esActivo(m.Activo));
-  if(!activos.length){grid.innerHTML='<div class="empty">No hay módulos disponibles.</div>';return;}
-  grid.innerHTML=activos.map(m=>{
-    const tieneURL=m.URL&&String(m.URL).trim()&&String(m.URL).startsWith('http');
-    const soon = !tieneURL;
-    return `<div class="mod-card${soon?' inactivo':''}" ${tieneURL?`onclick="abrirModulo('${encodeURIComponent(m.URL)}')"`:''}>
+  const visibles=currentUser&&currentUser.rol==='Admin'?modulos:modulos.filter(m=>esActivo(m.Activo));
+  if(!visibles.length){grid.innerHTML='<div class="empty">No hay módulos disponibles.</div>';return;}
+  grid.innerHTML=visibles.map(m=>{
+    const url=String(m.URL||'').trim();
+    const tieneURL=!!safeModuleURL(url);
+    const soon=!tieneURL;
+    return `<div class="mod-card${soon?' inactivo':''}" tabindex="${tieneURL?'0':'-1'}" ${tieneURL?`role="button" data-url="${escapeAttr(url)}"`:''}>
       ${soon?'<span class="mod-soon">Próximamente</span>':''}
-      <div class="mod-emoji">${m.Emoji||'📦'}</div>
-      <div class="mod-name">${m.Nombre||'Módulo'}</div>
-      <div class="mod-desc">${m.Descripcion||''}</div>
+      <div class="mod-emoji">${escapeHTML(m.Emoji)||'📦'}</div>
+      <div class="mod-name">${escapeHTML(m.Nombre)||'Módulo'}</div>
+      <div class="mod-desc">${escapeHTML(m.Descripcion)||''}</div>
       <div class="mod-bar"></div>
     </div>`;
   }).join('');
+  grid.querySelectorAll('.mod-card[data-url]').forEach(card=>{
+    card.addEventListener('click',()=>abrirModulo(card.dataset.url));
+    card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();abrirModulo(card.dataset.url);}});
+  });
 }
-function abrirModulo(url){window.location.href=decodeURIComponent(url);}
+function safeModuleURL(url){
+  try{
+    const u=new URL(url);
+    if(u.protocol!=='https:')return '';
+    if(ALLOWED_MODULE_HOSTS.length&&!ALLOWED_MODULE_HOSTS.includes(u.hostname))return '';
+    return u.href;
+  }catch(e){return '';}
+}
+function abrirModulo(url){const safe=safeModuleURL(url); if(!safe){toast('URL no permitida',true);return;} window.location.href=safe;}
 
 // ════════ CONFIG MODAL ════════
-function openConfig(){
+async function openConfig(){
+  if(!currentUser||currentUser.rol!=='Admin'){toast('Requiere rol Admin',true);return;}
+  if(!usuarios.length){try{const rU=await apiPost('getUsuarios');if(Array.isArray(rU))usuarios=rU;}catch(e){if(!handleAuthError(e))toast('No se pudieron cargar usuarios',true);}}
   renderConfigModulos();renderConfigUsuarios();
   document.getElementById('head-btn-mod').style.display='inline-flex';
   document.getElementById('head-btn-usr').style.display='none';
@@ -422,13 +479,14 @@ function renderConfigModulos(){
   tb.innerHTML=modulos.map(m=>{
     const url=m.URL?String(m.URL):'—';
     return `<tr>
-      <td class="em">${m.Emoji||'📦'}</td>
-      <td style="font-weight:600;">${m.Nombre||'—'}</td>
-      <td class="url-cell" title="${url}">${url==='—'?'—':url}</td>
+      <td class="em">${escapeHTML(m.Emoji)||'📦'}</td>
+      <td style="font-weight:600;">${escapeHTML(m.Nombre)||'—'}</td>
+      <td class="url-cell" title="${escapeAttr(url)}">${url==='—'?'—':escapeHTML(url)}</td>
       <td><span class="badge ${esActivo(m.Activo)?'b-active':'b-inactive'}">${esActivo(m.Activo)?'Activo':'Inactivo'}</span></td>
-      <td style="text-align:right;"><button class="row-edit" onclick='editModulo("${m.ID_Modulo}")'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
+      <td style="text-align:right;"><button class="row-edit js-edit-mod" data-id="${escapeAttr(m.ID_Modulo)}" aria-label="Editar módulo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
     </tr>`;
   }).join('');
+  tb.querySelectorAll('.js-edit-mod').forEach(b=>b.addEventListener('click',()=>editModulo(b.dataset.id)));
 }
 function renderConfigUsuarios(){
   const tb=document.getElementById('tbody-usr');
@@ -436,13 +494,14 @@ function renderConfigUsuarios(){
   tb.innerHTML=usuarios.map(u=>{
     const rol=u.Rol||'Editor';
     return `<tr>
-      <td style="font-weight:600;">${u.Nombre||'—'}</td>
-      <td class="url-cell" title="${u.Email||''}">${u.Email||'—'}</td>
-      <td><span class="badge ${rol==='Admin'?'b-admin':'b-editor'}">${rol}</span></td>
+      <td style="font-weight:600;">${escapeHTML(u.Nombre)||'—'}</td>
+      <td class="url-cell" title="${escapeAttr(u.Email||'')}">${escapeHTML(u.Email||'—')}</td>
+      <td><span class="badge ${rol==='Admin'?'b-admin':'b-editor'}">${escapeHTML(rol)}</span></td>
       <td><span class="badge ${esActivo(u.Activo)?'b-active':'b-inactive'}">${esActivo(u.Activo)?'Activo':'Inactivo'}</span></td>
-      <td style="text-align:right;"><button class="row-edit" onclick='editUsuario("${u.ID_Usuario}")'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
+      <td style="text-align:right;"><button class="row-edit js-edit-usr" data-id="${escapeAttr(u.ID_Usuario)}" aria-label="Editar usuario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
     </tr>`;
   }).join('');
+  tb.querySelectorAll('.js-edit-usr').forEach(b=>b.addEventListener('click',()=>editUsuario(b.dataset.id)));
 }
 
 // ════════ FORM MÓDULO ════════
@@ -470,14 +529,9 @@ function editModulo(id){
   openOv('ov-modulo');
 }
 async function saveModulo(){
-  const datos={
-    Nombre:document.getElementById('md-nombre').value.trim(),
-    URL:document.getElementById('md-url').value.trim(),
-    Emoji:document.getElementById('md-emoji').value.trim(),
-    Descripcion:document.getElementById('md-desc').value.trim(),
-    Activo:getToggle('md-activo')
-  };
+  const datos={Nombre:document.getElementById('md-nombre').value.trim(),URL:document.getElementById('md-url').value.trim(),Emoji:document.getElementById('md-emoji').value.trim(),Descripcion:document.getElementById('md-desc').value.trim(),Activo:getToggle('md-activo')};
   if(!datos.Nombre){toast('Escribe el nombre',true);return;}
+  if(datos.URL&&!safeModuleURL(datos.URL)){toast('La URL debe ser HTTPS y de un dominio permitido',true);return;}
   const btn=document.getElementById('md-save'); btn.disabled=true; btn.textContent='Guardando...';
   try{
     if(editingModulo){
@@ -491,8 +545,8 @@ async function saveModulo(){
       toast('Módulo creado');
     }
     saveCache(); renderModulos(); renderConfigModulos(); closeOv('ov-modulo');
-    setTimeout(loadData,1500);
-  }catch(e){toast('No se pudo guardar: '+(e.message||'error'),true);}
+    await loadData();
+  }catch(e){if(!handleAuthError(e))toast('No se pudo guardar: '+(e.message||'error'),true);}
   finally{btn.disabled=false; btn.textContent='Guardar';}
 }
 
@@ -517,13 +571,9 @@ function editUsuario(id){
   openOv('ov-usuario');
 }
 async function saveUsuario(){
-  const datos={
-    Nombre:document.getElementById('us-nombre').value.trim(),
-    Email:document.getElementById('us-email').value.trim(),
-    Rol:document.getElementById('us-rol').value,
-    Activo:getToggle('us-activo')
-  };
+  const datos={Nombre:document.getElementById('us-nombre').value.trim(),Email:document.getElementById('us-email').value.trim().toLowerCase(),Rol:document.getElementById('us-rol').value,Activo:getToggle('us-activo')};
   if(!datos.Nombre||!datos.Email){toast('Completa nombre y email',true);return;}
+  if(!datos.Email.endsWith('@'+DOMAIN)){toast('El email debe ser @'+DOMAIN,true);return;}
   const btn=document.getElementById('us-save'); btn.disabled=true; btn.textContent='Guardando...';
   try{
     if(editingUsuario){
@@ -536,35 +586,47 @@ async function saveUsuario(){
       usuarios.push({ID_Usuario:(r&&r.id)||'tmp_'+Date.now(),...datos});
       toast('Usuario creado');
     }
-    saveCache(); renderConfigUsuarios(); closeOv('ov-usuario');
-    setTimeout(loadData,1500);
-  }catch(e){toast('No se pudo guardar: '+(e.message||'error'),true);}
+    renderConfigUsuarios(); closeOv('ov-usuario');
+    await loadData();
+  }catch(e){if(!handleAuthError(e))toast('No se pudo guardar: '+(e.message||'error'),true);}
   finally{btn.disabled=false; btn.textContent='Guardar';}
 }
 
 // ════════ HELPERS ════════
-function openOv(id){document.getElementById(id).classList.add('open');document.body.style.overflow='hidden';}
-function closeOv(id){document.getElementById(id).classList.remove('open');document.body.style.overflow='';}
-function logout(){clearSession();cancelPrompt();location.reload();}
+function escapeHTML(str){if(typeof str!=='string')return str||'';return str.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
+function escapeAttr(str){return escapeHTML(String(str||''));}
+function openOv(id){
+  const el=document.getElementById(id);
+  el.classList.add('open');
+  document.body.style.overflow='hidden';
+  if(!el.dataset.listenerAdded){
+    el.addEventListener('click',e=>{if(e.target===el)closeOv(id);});
+    el.dataset.listenerAdded='true';
+  }
+}
+function closeOv(id){
+  const el=document.getElementById(id); if(el)el.classList.remove('open');
+  document.body.style.overflow=document.querySelector('.ov.open')?'hidden':'';
+}
+function closeTopOverlay(){
+  const open=[...document.querySelectorAll('.ov.open')];
+  if(open.length) closeOv(open[open.length-1].id);
+}
+function logout(){clearSession();clearCache();cancelPrompt();location.reload();}
 function cancelPrompt(){try{if(window.google&&google.accounts&&google.accounts.id){google.accounts.id.cancel();google.accounts.id.disableAutoSelect();}}catch(e){}}
-function toast(msg,err){const t=document.getElementById('toast');t.textContent=msg;t.className='show'+(err?' error':'');setTimeout(()=>t.className='',2800);}
+function toast(msg,err){const t=document.getElementById('toast');clearTimeout(toastTimer);t.textContent=msg;t.className='show'+(err?' error':'');toastTimer=setTimeout(()=>t.className='',3200);}
 
 // ════════ INIT ════════
 window.addEventListener('load',()=>{
   document.getElementById('login-logo').innerHTML=logoSVG(120);
   document.getElementById('tb-logo').innerHTML=logoSVG(44);
   const s=loadSession();
-  if(s){currentUser=s;enterHub();return;}
-  // sin sesión: renderizar el botón oficial de Google (con reintentos hasta que cargue el script)
-  let tries=0;
-  const iv=setInterval(()=>{
-    if(initGoogleOnce()||++tries>30){
-      clearInterval(iv);
-      // si no se pudo inicializar, mostrar el botón fallback
-      if(!gInit){const fb=document.getElementById('gbtn-fallback'); if(fb) fb.style.display='inline-flex';}
-    }
-  },200);
+  if(s&&s.idToken){currentUser=s;enterHub();return;}
+  clearSession();
+  initGoogleOnce();
+  setTimeout(()=>{if(!gInit){const fb=document.getElementById('gbtn-fallback');if(fb)fb.style.display='inline-flex';}},3000);
 });
+window.addEventListener('keydown',e=>{if(e.key==='Escape')closeTopOverlay();});
 </script>
 </body>
 </html>

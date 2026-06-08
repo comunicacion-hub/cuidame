@@ -756,8 +756,8 @@ function estadoCSS(e){
 // ════════════ CACHE / SESSION ════════════
 function saveCache(){try{localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),ninos,mediciones,comunidades,usuarios}));}catch(e){}}
 function loadCache(){try{const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}');if(!c.ts||Date.now()-c.ts>CACHE_TTL)return null;return c;}catch(e){return null;}}
-function loadSession(){try{const s=sessionStorage.getItem(SESSION_KEY);return s?JSON.parse(s):null;}catch(e){return null;}}
-function clearSession(){try{sessionStorage.removeItem(SESSION_KEY);}catch(e){}}
+function loadSession(){try{const s=localStorage.getItem(SESSION_KEY);return s?JSON.parse(s):null;}catch(e){return null;}}
+function clearSession(){try{localStorage.removeItem(SESSION_KEY);}catch(e){}}
 
 // El login se hace en el hub CuidaMe. Este módulo solo lee la sesión compartida.
 
@@ -1392,12 +1392,19 @@ function fmtInputDate(f){if(!f)return'';const d=parseFechaLocal(f);if(!d)return'
 
 // ════════════ INIT ════════════
 window.addEventListener('load',()=>{
+  // Migrar sesión vieja de sessionStorage si existe
+  try{
+    const old=sessionStorage.getItem(SESSION_KEY);
+    if(old&&!localStorage.getItem(SESSION_KEY)){
+      localStorage.setItem(SESSION_KEY,old);
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+  }catch(e){}
   const s=loadSession();
   if(s && s.email){
     currentUser={email:s.email, nombre:s.nombre||s.email, rol:s.rol||'Editor'};
     enterApp();
   } else {
-    // Sin sesión del hub → redirige al hub para iniciar sesión (no hay login propio)
     window.location.href=HUB_URL;
   }
 });

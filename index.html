@@ -560,19 +560,27 @@ function toast(msg,err){const t=document.getElementById('toast');t.textContent=m
 window.addEventListener('load',()=>{
   document.getElementById('login-logo').innerHTML=logoSVG(120);
   document.getElementById('tb-logo').innerHTML=logoSVG(44);
+  // Migrar sesión vieja de sessionStorage si existe
+  try{
+    const old=sessionStorage.getItem(SESSION_KEY);
+    if(old&&!localStorage.getItem(SESSION_KEY)){
+      localStorage.setItem(SESSION_KEY,old);
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+  }catch(e){}
   const s=loadSession();
   if(s){currentUser=s;enterHub();return;}
-  // Guardar la URL desde donde vino (para regresar después del login)
+  // Guardar URL de retorno si vino de un módulo
   const ref=document.referrer;
-  if(ref && ref.includes('comunicacion-hub.github.io') && !ref.includes('/cuidame/') && ref !== window.location.href){
-    try{sessionStorage.setItem('rcr_return_url', ref);}catch(e){}
+  if(ref&&ref.includes('comunicacion-hub.github.io')&&!ref.includes('/cuidame/')&&ref!==window.location.href){
+    try{sessionStorage.setItem('rcr_return_url',ref);}catch(e){}
   }
-  // sin sesión: renderizar el botón oficial de Google (con reintentos hasta que cargue el script)
+  // Renderizar botón Google con reintentos
   let tries=0;
   const iv=setInterval(()=>{
     if(initGoogleOnce()||++tries>30){
       clearInterval(iv);
-      if(!gInit){const fb=document.getElementById('gbtn-fallback'); if(fb) fb.style.display='inline-flex';}
+      if(!gInit){const fb=document.getElementById('gbtn-fallback');if(fb)fb.style.display='inline-flex';}
     }
   },200);
 });

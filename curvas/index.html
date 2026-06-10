@@ -762,23 +762,23 @@ function clearSession(){try{localStorage.removeItem(SESSION_KEY);}catch(e){}}
 // El login se hace en el hub CuidaMe. Este módulo solo lee la sesión compartida.
 
 // ════════════ API ════════════
-async function apiGet(accion, params={}){
-  const u=new URL(SCRIPT_URL);
-  u.searchParams.set('accion',accion);
-  u.searchParams.set('email',currentUser.email);
-  Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
-  const r=await fetch(u.toString(),{method:'GET',cache:'no-store'});
-  return r.json();
-}
+// Backend seguro: todo por POST con token de Google. apiGet se mantiene por compatibilidad pero usa POST.
 async function apiPost(accion, datos){
   const r=await fetch(SCRIPT_URL,{
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify({accion,email:currentUser.email,datos}),
+    body:JSON.stringify({accion, token:(currentUser&&currentUser.token)||'', datos:datos||{}}),
     cache:'no-store'
   });
   const txt=await r.text();
   try{return JSON.parse(txt);}catch(e){return {ok:true,raw:txt};}
+}
+async function apiGet(accion, params={}){
+  // El backend exige POST autenticado; redirigimos.
+  return apiPost(accion, params);
+}
+function tokenExpirado(resp){
+  return resp && resp.error && /token|autoriz|sesi/i.test(resp.error);
 }
 
 // ════════════ ENTER APP / LOAD ════════════
@@ -794,12 +794,19 @@ function enterApp(){
 async function reloadAll(){
   const btn=document.getElementById('btn-sync'); btn&&btn.classList.add('syncing');
   try{
-    const [rN,rM,rC] = await Promise.all([apiGet('getNinos'),apiGet('getMediciones'),apiGet('getComunidades')]);
-    if(rN&&!rN.error) ninos=rN;
-    if(rM&&!rM.error) mediciones=rM;
-    if(rC&&!rC.error) comunidades=rC;
-    if(currentUser.rol==='Admin'){const rU=await apiGet('getUsuarios'); if(rU&&!rU.error) usuarios=rU;}
-    saveCache(); renderAll();
+    const r=await apiPost('getBootstrap',{});
+    if(tokenExpirado(r)){
+      toast('Tu sesión expiró, vuelve a iniciar sesión',true);
+      clearSession();
+      setTimeout(()=>{window.location.href=HUB_URL;},1500);
+      return;
+    }
+    if(r&&r.ok){
+      ninos=r.ninos||[];
+      mediciones=r.mediciones||[];
+      comunidades=r.comunidades||[];
+      saveCache(); renderAll();
+    }
   }catch(e){toast('No se pudo conectar. Mostrando datos guardados.',true);}
   finally{btn&&btn.classList.remove('syncing');}
 }
@@ -1260,8 +1267,7 @@ async function saveMedicion(){
     Tipo_Actividad:document.getElementById('md-actividad').value,
     Peso_kg:peso, Talla_cm:talla,
     Edad_Meses:mes, Z_Talla_Edad:zt, Z_Peso_Edad:zp,
-    Observaciones:document.getElementById('md-obs').value.trim(),
-    ID_Usuario:currentUser.email
+    Observaciones:document.getElementById('md-obs').value.trim()
   };
   const btn=document.getElementById('md-save'); btn.disabled=true; const txtOrig=btn.textContent; btn.textContent='Guardando...';
   try{
@@ -1401,10 +1407,11 @@ window.addEventListener('load',()=>{
     }
   }catch(e){}
   const s=loadSession();
-  if(s && s.email){
-    currentUser={email:s.email, nombre:s.nombre||s.email, rol:s.rol||'Editor'};
+  if(s && s.email && s.token){
+    currentUser={email:s.email, nombre:s.nombre||s.email, rol:s.rol||'Editor', token:s.token};
     enterApp();
   } else {
+    // sin sesión válida o sin token → al hub para iniciar sesión
     window.location.href=HUB_URL;
   }
 });

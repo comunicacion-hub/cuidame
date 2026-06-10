@@ -330,12 +330,12 @@ function startLogin(){
 function onCredential(resp){
   try{
     cancelPrompt();
-    const p=JSON.parse(atob(resp.credential.split('.')[1]));
+    const idToken=resp.credential;
+    const p=JSON.parse(atob(idToken.split('.')[1]));
     const email=p.email||'', name=p.name||email, pic=p.picture||'';
     if(!email.endsWith('@'+DOMAIN)){toast('Solo cuentas @'+DOMAIN,true);return;}
-    currentUser={email,nombre:name,rol:(email===ADMIN_EMAIL?'Admin':'Editor'),picture:pic};
+    currentUser={email,nombre:name,rol:(email===ADMIN_EMAIL?'Admin':'Editor'),picture:pic,token:idToken};
     saveSession(currentUser);
-    // Si vino de un módulo, regresar ahí directamente
     const returnUrl=sessionStorage.getItem('rcr_return_url');
     if(returnUrl){
       sessionStorage.removeItem('rcr_return_url');
@@ -350,13 +350,13 @@ function onCredential(resp){
 async function apiGet(accion,params={}){
   const u=new URL(SCRIPT_URL);
   u.searchParams.set('accion',accion);
-  u.searchParams.set('email',currentUser.email);
+  u.searchParams.set('token',(currentUser&&currentUser.token)||'');
   Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
   const r=await fetch(u.toString(),{method:'GET',cache:'no-store'});
   const t=await r.text(); try{return JSON.parse(t);}catch(e){return {raw:t};}
 }
 async function apiPost(accion,datos){
-  const r=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({accion,email:currentUser.email,datos}),cache:'no-store'});
+  const r=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({accion,token:(currentUser&&currentUser.token)||'',datos}),cache:'no-store'});
   const t=await r.text(); try{return JSON.parse(t);}catch(e){return {ok:true,raw:t};}
 }
 
@@ -374,8 +374,14 @@ function enterHub(){
 async function loadData(){
   try{
     const rM=await apiGet('getModulos');
+    // token expirado o inválido → re-login
+    if(rM&&rM.error&&/token|autoriz/i.test(rM.error)){
+      toast('Tu sesión expiró, vuelve a iniciar sesión',true);
+      clearSession();
+      setTimeout(()=>location.reload(),1500);
+      return;
+    }
     if(rM&&!rM.error&&Array.isArray(rM)) modulos=rM;
-    // confirmar rol real desde el backend (por si el usuario es Admin en la hoja)
     const rP=await apiGet('getPerfil');
     if(rP&&rP.ok&&rP.usuario&&rP.usuario.Rol){
       currentUser.rol=rP.usuario.Rol; saveSession(currentUser);

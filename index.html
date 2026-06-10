@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>CuidaMe</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
   :root{
     --cyan:#0BC3FF; --teal:#18AE97; --green:#9FDA60; --yellow:#F5AD21;
@@ -155,8 +157,7 @@
     <div class="login-logo" id="login-logo"></div>
     <div class="login-title">CuidaMe</div>
     <div class="gbtn-wrap">
-      <div id="gbtn-google"></div>
-      <button class="gbtn-fallback" id="gbtn-fallback" onclick="startLogin()" style="display:none;">Iniciar sesión con
+      <button class="gbtn-fallback" id="gbtn-login" onclick="startLogin()">Iniciar sesión con
         <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg>
       </button>
     </div>
@@ -250,10 +251,15 @@
       <div class="fg"><label>Nombre</label><input id="us-nombre" placeholder="Nombre completo"></div>
       <div class="fg"><label>Email</label><input id="us-email" type="email" placeholder="correo@redesconrostro.org"></div>
       <div class="fg-row">
-        <div class="fg"><label>Rol</label><select id="us-rol"><option value="Editor">Editor</option><option value="Admin">Admin</option></select></div>
+        <div class="fg"><label>Rol</label><select id="us-rol" onchange="toggleModulosBox()"><option value="Editor">Editor</option><option value="Admin">Admin</option></select></div>
         <div class="fg"><label>Estado</label>
           <div class="toggle-wrap"><div class="toggle on" id="us-activo" onclick="this.classList.toggle('on')"></div><span style="font-size:14px;color:var(--text-muted);">Activo</span></div>
         </div>
+      </div>
+      <div class="fg" id="us-modulos-wrap">
+        <label>Módulos visibles</label>
+        <div style="font-size:12px;color:var(--text-muted);margin:-3px 0 4px;">Marca los módulos que este usuario podrá ver. Los Admin ven todos.</div>
+        <div id="us-modulos-box" style="border:1.5px solid #e2e8f0;border-radius:12px;padding:8px 14px;max-height:200px;overflow-y:auto;"></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -266,14 +272,25 @@
 <div id="toast"></div>
 
 <script>
-// ════════ CONFIG ════════
-const SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbxrQRJXG4RItmps9y00QGm6zZNZaM_IssRk259M6h6CDAWXdzO2Lr3HJgTLweUS7yT8/exec';
-const G_CLIENT    = '783730193199-d7nhahv3ou4rmps7nrpoop5cpor079ej.apps.googleusercontent.com';
+// ════════ CONFIG FIREBASE (proyecto cuidame-cfbb8) ════════
+const firebaseConfig = {
+  apiKey: "AIzaSyD5iU5kPxZxzEbmjcDWWIEPYw9BTzKz2ag",
+  authDomain: "cuidame-cfbb8.firebaseapp.com",
+  projectId: "cuidame-cfbb8",
+  storageBucket: "cuidame-cfbb8.firebasestorage.app",
+  messagingSenderId: "343916138404",
+  appId: "1:343916138404:web:ff530ab3dfffe4e3823b31",
+  measurementId: "G-QMV2KGQRY3"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
+
 const DOMAIN      = 'redesconrostro.org';
 const ADMIN_EMAIL = 'comunicacion@redesconrostro.org';
 const SESSION_KEY = 'rcr_hub_session';
 const CACHE_KEY   = 'cuidame_hub_cache';
-const CACHE_TTL   = 5*60*1000;
 
 let currentUser=null, modulos=[], usuarios=[];
 let editingModulo=null, editingUsuario=null;
@@ -301,113 +318,113 @@ function logoSVG(size){
 
 // ════════ SESSION / CACHE ════════
 function saveSession(u){try{localStorage.setItem(SESSION_KEY,JSON.stringify(u));}catch(e){}}
-function loadSession(){try{const s=localStorage.getItem(SESSION_KEY);return s?JSON.parse(s):null;}catch(e){return null;}}
 function clearSession(){try{localStorage.removeItem(SESSION_KEY);}catch(e){}}
 function saveCache(){try{localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),modulos,usuarios}));}catch(e){}}
-function loadCache(){try{const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}');if(!c.ts||Date.now()-c.ts>CACHE_TTL)return null;return c;}catch(e){return null;}}
+function loadCache(){try{const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}');if(!c.ts)return null;return c;}catch(e){return null;}}
 
-// ════════ GOOGLE LOGIN ════════
-let gInit=false;
-function initGoogleOnce(){
-  if(gInit) return true;
-  if(typeof google==='undefined'||!google.accounts||!google.accounts.id) return false;
-  google.accounts.id.initialize({client_id:G_CLIENT,callback:onCredential,auto_select:false,cancel_on_tap_outside:true,use_fedcm_for_prompt:false});
-  gInit=true;
-  // renderizar el botón oficial de Google (fiable) sobre nuestro contenedor
-  const host=document.getElementById('gbtn-google');
-  if(host){
-    host.innerHTML='';
-    try{ google.accounts.id.renderButton(host,{theme:'outline',size:'large',type:'standard',shape:'pill',text:'signin_with',width:300}); }catch(e){}
-  }
-  return true;
+// ════════ HELPERS ════════
+// Escapa texto antes de inyectarlo en innerHTML (evita XSS y HTML roto por comillas/<>)
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function iniciales(n){return (n||'?').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();}
+function esActivo(v){if(v===''||v==null)return true;if(v===true)return true;const s=String(v).trim().toLowerCase();return s==='true'||s==='sí'||s==='si'||s==='1'||s==='verdadero';}
+// Devuelve la lista de módulos permitidos del usuario:
+//  - array (Firestore) o texto con comas → array de IDs
+//  - campo ausente → null  (legado: ve todos los módulos hasta que se reimporte con el campo)
+function permitidosDe(data){
+  if(data.ModulosPermitidos===undefined||data.ModulosPermitidos===null) return null;
+  if(Array.isArray(data.ModulosPermitidos)) return data.ModulosPermitidos.map(s=>String(s).trim()).filter(Boolean);
+  return String(data.ModulosPermitidos).split(',').map(s=>s.trim()).filter(Boolean);
 }
+
+// ════════ LOGIN (Firebase Auth + Google) ════════
 function startLogin(){
-  if(typeof google==='undefined'){toast('Cargando Google... intenta de nuevo',true);return;}
-  if(!initGoogleOnce()){toast('No se pudo iniciar Google. Recarga la página.',true);return;}
-  // si el botón oficial está visible, el usuario debe tocarlo; igual intentamos el prompt
-  try{ google.accounts.id.prompt(); }catch(e){}
-}
-function onCredential(resp){
-  try{
-    cancelPrompt();
-    const idToken=resp.credential;
-    const p=JSON.parse(atob(idToken.split('.')[1]));
-    const email=p.email||'', name=p.name||email, pic=p.picture||'';
-    if(!email.endsWith('@'+DOMAIN)){toast('Solo cuentas @'+DOMAIN,true);return;}
-    currentUser={email,nombre:name,rol:(email===ADMIN_EMAIL?'Admin':'Editor'),picture:pic,token:idToken};
-    saveSession(currentUser);
-    const returnUrl=sessionStorage.getItem('rcr_return_url');
-    if(returnUrl){
-      sessionStorage.removeItem('rcr_return_url');
-      window.location.href=returnUrl;
-      return;
-    }
-    enterHub();
-  }catch(e){toast('Error al iniciar sesión',true);}
+  const provider=new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({hd:DOMAIN, prompt:'select_account'});
+  try{sessionStorage.setItem('rcr_login_intent','1');}catch(e){}
+  auth.signInWithPopup(provider).catch(e=>{
+    try{sessionStorage.removeItem('rcr_login_intent');}catch(_){}
+    if(e&&(e.code==='auth/popup-closed-by-user'||e.code==='auth/cancelled-popup-request'))return;
+    toast('No se pudo iniciar sesión: '+(e.message||e.code||'error'),true);
+  });
 }
 
-// ════════ API ════════
-async function apiGet(accion,params={}){
-  const u=new URL(SCRIPT_URL);
-  u.searchParams.set('accion',accion);
-  u.searchParams.set('token',(currentUser&&currentUser.token)||'');
-  Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
-  const r=await fetch(u.toString(),{method:'GET',cache:'no-store'});
-  const t=await r.text(); try{return JSON.parse(t);}catch(e){return {raw:t};}
-}
-async function apiPost(accion,datos){
-  const r=await fetch(SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({accion,token:(currentUser&&currentUser.token)||'',datos}),cache:'no-store'});
-  const t=await r.text(); try{return JSON.parse(t);}catch(e){return {ok:true,raw:t};}
-}
+// onAuthStateChanged maneja todo: login nuevo Y sesión ya iniciada al recargar
+auth.onAuthStateChanged(async (user)=>{
+  if(!user){ currentUser=null; mostrarLogin(); return; }
+  const email=(user.email||'').toLowerCase();
+  if(!email.endsWith('@'+DOMAIN)){
+    toast('Solo cuentas @'+DOMAIN,true);
+    await auth.signOut(); return;
+  }
+  try{
+    const snap=await db.collection('Usuarios').doc(email).get();
+    if(!snap.exists || !esActivo(snap.data().Activo)){
+      toast('Tu cuenta no tiene acceso. Contacta al administrador.',true);
+      setTimeout(()=>auth.signOut(),1800); return;
+    }
+    const data=snap.data();
+    currentUser={
+      email,
+      nombre: data.Nombre || user.displayName || email,
+      rol:    data.Rol || (email===ADMIN_EMAIL?'Admin':'Editor'),
+      permitidos: permitidosDe(data)
+    };
+    saveSession({email:currentUser.email,nombre:currentUser.nombre,rol:currentUser.rol});
+    // Volver al módulo de origen SOLO si esto fue un login explícito (no una recarga con sesión activa)
+    const fresh=sessionStorage.getItem('rcr_login_intent');
+    try{sessionStorage.removeItem('rcr_login_intent');}catch(e){}
+    const returnUrl=sessionStorage.getItem('rcr_return_url');
+    if(fresh && returnUrl){ sessionStorage.removeItem('rcr_return_url'); window.location.href=returnUrl; return; }
+    enterHub();
+  }catch(e){ console.error(e); toast('Error al verificar acceso',true); }
+});
 
 // ════════ ENTER HUB ════════
 function enterHub(){
+  try{sessionStorage.removeItem('rcr_return_url');}catch(e){}
   document.getElementById('login').style.display='none';
   document.getElementById('hub').style.display='flex';
   document.getElementById('hello-name').textContent=(currentUser.nombre||'').split(' ')[0]||'';
   document.getElementById('tb-avatar').textContent=iniciales(currentUser.nombre);
-  if(currentUser.rol==='Admin') document.getElementById('btn-config').style.display='flex';
+  document.getElementById('btn-config').style.display=currentUser.rol==='Admin'?'flex':'none';
   const c=loadCache();
   if(c){modulos=c.modulos||[];usuarios=c.usuarios||[];renderModulos();}
   loadData();
 }
+
 async function loadData(){
   try{
-    const rM=await apiGet('getModulos');
-    // token expirado o inválido → re-login
-    if(rM&&rM.error&&/token|autoriz/i.test(rM.error)){
-      toast('Tu sesión expiró, vuelve a iniciar sesión',true);
-      clearSession();
-      setTimeout(()=>location.reload(),1500);
-      return;
+    const ms=await db.collection('Modulos').get();
+    modulos=ms.docs.map(d=>{const x=d.data();return {_id:d.id, ...x, ID_Modulo:x.ID_Modulo||d.id};});
+    if(currentUser.rol==='Admin'){
+      const us=await db.collection('Usuarios').get();
+      usuarios=us.docs.map(d=>{const x=d.data();return {_id:d.id, ...x, ID_Usuario:x.ID_Usuario||d.id, Email:x.Email||d.id};});
     }
-    if(rM&&!rM.error&&Array.isArray(rM)) modulos=rM;
-    const rP=await apiGet('getPerfil');
-    if(rP&&rP.ok&&rP.usuario&&rP.usuario.Rol){
-      currentUser.rol=rP.usuario.Rol; saveSession(currentUser);
-      document.getElementById('btn-config').style.display = currentUser.rol==='Admin'?'flex':'none';
-    }
-    if(currentUser.rol==='Admin'){const rU=await apiGet('getUsuarios'); if(rU&&!rU.error&&Array.isArray(rU)) usuarios=rU;}
     saveCache(); renderModulos();
-  }catch(e){toast('No se pudo conectar. Mostrando datos guardados.',true);}
+    if(document.getElementById('ov-config').classList.contains('open')){renderConfigModulos();renderConfigUsuarios();}
+  }catch(e){ console.error(e); toast('No se pudo conectar. Mostrando datos guardados.',true); }
 }
 
-function iniciales(n){return (n||'?').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();}
-function esActivo(v){if(v===''||v==null)return true;if(v===true)return true;const s=String(v).trim().toLowerCase();return s==='true'||s==='sí'||s==='si'||s==='1'||s==='verdadero';}
-
-// ════════ RENDER MÓDULOS ════════
+// ════════ RENDER MÓDULOS (con ocultamiento por usuario) ════════
+function modulosVisibles(){
+  const activos=modulos.filter(m=>esActivo(m.Activo));
+  if(currentUser.rol==='Admin') return activos;          // Admin: ve todos
+  const permit=currentUser.permitidos;
+  if(permit===null) return activos;                       // legado sin campo: ve todos
+  return activos.filter(m=>permit.includes(String(m.ID_Modulo)));
+}
 function renderModulos(){
   const grid=document.getElementById('mod-grid');
-  const activos=modulos.filter(m=>esActivo(m.Activo));
-  if(!activos.length){grid.innerHTML='<div class="empty">No hay módulos disponibles.</div>';return;}
-  grid.innerHTML=activos.map(m=>{
+  const vis=modulosVisibles();
+  if(!vis.length){grid.innerHTML='<div class="empty">No hay módulos disponibles para tu cuenta.</div>';return;}
+  grid.innerHTML=vis.map(m=>{
     const tieneURL=m.URL&&String(m.URL).trim()&&String(m.URL).startsWith('http');
-    const soon = !tieneURL;
+    const soon=!tieneURL;
     return `<div class="mod-card${soon?' inactivo':''}" ${tieneURL?`onclick="abrirModulo('${encodeURIComponent(m.URL)}')"`:''}>
       ${soon?'<span class="mod-soon">Próximamente</span>':''}
-      <div class="mod-emoji">${m.Emoji||'📦'}</div>
-      <div class="mod-name">${m.Nombre||'Módulo'}</div>
-      <div class="mod-desc">${m.Descripcion||''}</div>
+      <div class="mod-emoji">${esc(m.Emoji)||'📦'}</div>
+      <div class="mod-name">${esc(m.Nombre)||'Módulo'}</div>
+      <div class="mod-desc">${esc(m.Descripcion)||''}</div>
       <div class="mod-bar"></div>
     </div>`;
   }).join('');
@@ -417,8 +434,7 @@ function abrirModulo(url){window.location.href=decodeURIComponent(url);}
 // ════════ CONFIG MODAL ════════
 function openConfig(){
   renderConfigModulos();renderConfigUsuarios();
-  document.getElementById('head-btn-mod').style.display='inline-flex';
-  document.getElementById('head-btn-usr').style.display='none';
+  switchTab('mod');
   openOv('ov-config');
 }
 function switchTab(t){
@@ -435,11 +451,11 @@ function renderConfigModulos(){
   tb.innerHTML=modulos.map(m=>{
     const url=m.URL?String(m.URL):'—';
     return `<tr>
-      <td class="em">${m.Emoji||'📦'}</td>
-      <td style="font-weight:600;">${m.Nombre||'—'}</td>
-      <td class="url-cell" title="${url}">${url==='—'?'—':url}</td>
+      <td class="em">${esc(m.Emoji)||'📦'}</td>
+      <td style="font-weight:600;">${esc(m.Nombre)||'—'}</td>
+      <td class="url-cell" title="${esc(url)}">${esc(url)}</td>
       <td><span class="badge ${esActivo(m.Activo)?'b-active':'b-inactive'}">${esActivo(m.Activo)?'Activo':'Inactivo'}</span></td>
-      <td style="text-align:right;"><button class="row-edit" onclick='editModulo("${m.ID_Modulo}")'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
+      <td style="text-align:right;"><button class="row-edit" onclick='editModulo("${(m._id||m.ID_Modulo)}")'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
     </tr>`;
   }).join('');
 }
@@ -449,11 +465,11 @@ function renderConfigUsuarios(){
   tb.innerHTML=usuarios.map(u=>{
     const rol=u.Rol||'Editor';
     return `<tr>
-      <td style="font-weight:600;">${u.Nombre||'—'}</td>
-      <td class="url-cell" title="${u.Email||''}">${u.Email||'—'}</td>
+      <td style="font-weight:600;">${esc(u.Nombre)||'—'}</td>
+      <td class="url-cell" title="${esc(u.Email)}">${esc(u.Email)||'—'}</td>
       <td><span class="badge ${rol==='Admin'?'b-admin':'b-editor'}">${rol}</span></td>
       <td><span class="badge ${esActivo(u.Activo)?'b-active':'b-inactive'}">${esActivo(u.Activo)?'Activo':'Inactivo'}</span></td>
-      <td style="text-align:right;"><button class="row-edit" onclick='editUsuario("${u.ID_Usuario}")'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
+      <td style="text-align:right;"><button class="row-edit" onclick='editUsuario("${(u._id||u.Email)}")'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
     </tr>`;
   }).join('');
 }
@@ -472,8 +488,8 @@ function openModuloForm(){
   openOv('ov-modulo');
 }
 function editModulo(id){
-  const m=modulos.find(x=>String(x.ID_Modulo)===String(id)); if(!m)return;
-  editingModulo=id;
+  const m=modulos.find(x=>String(x._id)===String(id)||String(x.ID_Modulo)===String(id)); if(!m)return;
+  editingModulo=m._id||m.ID_Modulo;
   document.getElementById('modulo-title').textContent='Editar módulo';
   document.getElementById('md-emoji').value=m.Emoji||'';
   document.getElementById('md-nombre').value=m.Nombre||'';
@@ -494,72 +510,86 @@ async function saveModulo(){
   const btn=document.getElementById('md-save'); btn.disabled=true; btn.textContent='Guardando...';
   try{
     if(editingModulo){
-      datos.ID_Modulo=editingModulo;
-      const r=await apiPost('editarModulo',datos); if(r&&r.error)throw new Error(r.error);
-      const i=modulos.findIndex(x=>String(x.ID_Modulo)===String(editingModulo)); if(i>=0)modulos[i]={...modulos[i],...datos};
+      await db.collection('Modulos').doc(editingModulo).set({...datos, ID_Modulo:editingModulo},{merge:true});
       toast('Módulo actualizado');
     }else{
-      const r=await apiPost('crearModulo',datos); if(r&&r.error)throw new Error(r.error);
-      modulos.push({ID_Modulo:(r&&r.id)||'tmp_'+Date.now(),...datos});
+      const id='MOD_'+Date.now();
+      await db.collection('Modulos').doc(id).set({...datos, ID_Modulo:id});
       toast('Módulo creado');
     }
-    saveCache(); renderModulos(); renderConfigModulos(); closeOv('ov-modulo');
-    setTimeout(loadData,1500);
-  }catch(e){toast('No se pudo guardar: '+(e.message||'error'),true);}
+    closeOv('ov-modulo'); await loadData();
+  }catch(e){console.error(e);toast('No se pudo guardar: '+(e.message||'error'),true);}
   finally{btn.disabled=false; btn.textContent='Guardar';}
 }
 
 // ════════ FORM USUARIO ════════
+function buildModulosChecks(selected){
+  const box=document.getElementById('us-modulos-box');
+  const sel=(selected||[]).map(String);
+  if(!modulos.length){box.innerHTML='<div style="font-size:13px;color:var(--text-muted);padding:6px 0;">No hay módulos cargados aún.</div>';return;}
+  box.innerHTML=modulos.map(m=>{
+    const id=String(m.ID_Modulo);
+    const ck=sel.includes(id)?'checked':'';
+    return `<label style="display:flex;align-items:center;gap:9px;padding:7px 0;font-size:14px;cursor:pointer;">
+      <input type="checkbox" value="${esc(id)}" ${ck} style="width:18px;height:18px;accent-color:var(--teal);">
+      <span>${esc(m.Emoji)||'📦'} ${esc(m.Nombre)||esc(id)}</span></label>`;
+  }).join('');
+}
+function toggleModulosBox(){
+  const rol=document.getElementById('us-rol').value;
+  document.getElementById('us-modulos-wrap').style.display = rol==='Admin' ? 'none' : 'flex';
+}
 function openUsuarioForm(){
   editingUsuario=null;
   document.getElementById('usuario-title').textContent='Nuevo usuario';
   document.getElementById('us-nombre').value='';
-  document.getElementById('us-email').value='';
+  const em=document.getElementById('us-email'); em.value=''; em.readOnly=false; em.style.opacity='1';
   document.getElementById('us-rol').value='Editor';
   setToggle('us-activo',true);
+  buildModulosChecks([]);
+  toggleModulosBox();
   openOv('ov-usuario');
 }
 function editUsuario(id){
-  const u=usuarios.find(x=>String(x.ID_Usuario)===String(id)); if(!u)return;
-  editingUsuario=id;
+  const u=usuarios.find(x=>String(x._id)===String(id)||String(x.Email)===String(id)); if(!u)return;
+  editingUsuario=u._id||u.Email;
   document.getElementById('usuario-title').textContent='Editar usuario';
   document.getElementById('us-nombre').value=u.Nombre||'';
-  document.getElementById('us-email').value=u.Email||'';
+  const em=document.getElementById('us-email'); em.value=u.Email||u._id||''; em.readOnly=true; em.style.opacity='0.6';
   document.getElementById('us-rol').value=u.Rol||'Editor';
   setToggle('us-activo',esActivo(u.Activo));
+  buildModulosChecks(permitidosDe(u)||[]);
+  toggleModulosBox();
   openOv('ov-usuario');
 }
 async function saveUsuario(){
+  const nombre=document.getElementById('us-nombre').value.trim();
+  const email=document.getElementById('us-email').value.trim().toLowerCase();
+  const rol=document.getElementById('us-rol').value;
+  const activo=getToggle('us-activo');
+  if(!nombre||!email){toast('Completa nombre y email',true);return;}
+  if(!email.endsWith('@'+DOMAIN)){toast('El email debe ser @'+DOMAIN,true);return;}
+  const checks=[...document.querySelectorAll('#us-modulos-box input:checked')].map(i=>i.value);
   const datos={
-    Nombre:document.getElementById('us-nombre').value.trim(),
-    Email:document.getElementById('us-email').value.trim(),
-    Rol:document.getElementById('us-rol').value,
-    Activo:getToggle('us-activo')
+    Nombre:nombre, Email:email, Rol:rol, Activo:activo,
+    ModulosPermitidos: rol==='Admin' ? [] : checks
   };
-  if(!datos.Nombre||!datos.Email){toast('Completa nombre y email',true);return;}
   const btn=document.getElementById('us-save'); btn.disabled=true; btn.textContent='Guardando...';
   try{
-    if(editingUsuario){
-      datos.ID_Usuario=editingUsuario;
-      const r=await apiPost('editarUsuario',datos); if(r&&r.error)throw new Error(r.error);
-      const i=usuarios.findIndex(x=>String(x.ID_Usuario)===String(editingUsuario)); if(i>=0)usuarios[i]={...usuarios[i],...datos};
-      toast('Usuario actualizado');
-    }else{
-      const r=await apiPost('crearUsuario',datos); if(r&&r.error)throw new Error(r.error);
-      usuarios.push({ID_Usuario:(r&&r.id)||'tmp_'+Date.now(),...datos});
-      toast('Usuario creado');
-    }
-    saveCache(); renderConfigUsuarios(); closeOv('ov-usuario');
-    setTimeout(loadData,1500);
-  }catch(e){toast('No se pudo guardar: '+(e.message||'error'),true);}
+    const prev=usuarios.find(x=>(x._id||x.Email)===editingUsuario);
+    const idUsuario=(prev&&prev.ID_Usuario) || 'USR_'+Date.now();
+    // el doc ID es el email; al editar no se cambia (campo bloqueado)
+    await db.collection('Usuarios').doc(email).set({...datos, ID_Usuario:idUsuario},{merge:true});
+    toast(editingUsuario?'Usuario actualizado':'Usuario creado');
+    closeOv('ov-usuario'); await loadData();
+  }catch(e){console.error(e);toast('No se pudo guardar: '+(e.message||'error'),true);}
   finally{btn.disabled=false; btn.textContent='Guardar';}
 }
 
-// ════════ HELPERS ════════
+// ════════ HELPERS UI ════════
 function openOv(id){document.getElementById(id).classList.add('open');document.body.style.overflow='hidden';}
 function closeOv(id){document.getElementById(id).classList.remove('open');document.body.style.overflow='';}
-function logout(){clearSession();cancelPrompt();location.reload();}
-function cancelPrompt(){try{if(window.google&&google.accounts&&google.accounts.id){google.accounts.id.cancel();google.accounts.id.disableAutoSelect();}}catch(e){}}
+function logout(){clearSession();try{localStorage.removeItem(CACHE_KEY);}catch(e){}auth.signOut().finally(()=>location.reload());}
 function toast(msg,err){const t=document.getElementById('toast');t.textContent=msg;t.className='show'+(err?' error':'');setTimeout(()=>t.className='',2800);}
 
 // ════════ INIT ════════
@@ -574,40 +604,12 @@ window.onerror=function(msg,src,line,col,err){
 function mostrarLogin(){
   try{document.getElementById('login').style.display='flex';}catch(e){}
   try{document.getElementById('hub').style.display='none';}catch(e){}
-  let tries=0;
-  const iv=setInterval(()=>{
-    if(initGoogleOnce()||++tries>30){
-      clearInterval(iv);
-      if(!gInit){const fb=document.getElementById('gbtn-fallback');if(fb)fb.style.display='inline-flex';}
-    }
-  },200);
 }
 window.addEventListener('load',()=>{
   try{
     document.getElementById('login-logo').innerHTML=logoSVG(120);
     document.getElementById('tb-logo').innerHTML=logoSVG(44);
   }catch(e){}
-  // Migrar sesión vieja de sessionStorage si existe
-  try{
-    const old=sessionStorage.getItem(SESSION_KEY);
-    if(old&&!localStorage.getItem(SESSION_KEY)){
-      localStorage.setItem(SESSION_KEY,old);
-      sessionStorage.removeItem(SESSION_KEY);
-    }
-  }catch(e){}
-  const s=loadSession();
-  if(s&&s.email){
-    try{
-      currentUser={email:s.email,nombre:s.nombre||s.email,rol:s.rol||'Editor'};
-      enterHub();
-      return;
-    }catch(e){
-      // si enterHub falla, limpiar y mostrar login
-      try{localStorage.removeItem(SESSION_KEY);}catch(_){}
-      mostrarLogin();
-      return;
-    }
-  }
   // Guardar URL de retorno si vino de un módulo
   try{
     const ref=document.referrer;
@@ -615,7 +617,7 @@ window.addEventListener('load',()=>{
       sessionStorage.setItem('rcr_return_url',ref);
     }
   }catch(e){}
-  mostrarLogin();
+  // El estado de sesión lo resuelve onAuthStateChanged
 });
 </script>
 </body>

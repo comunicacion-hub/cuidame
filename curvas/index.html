@@ -139,12 +139,12 @@
   .dist-item-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
   .dist-item-label{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--text);}
   .dist-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
-  .dist-dot.sev,.dist-dot.cronica{background:#FF376F;}.dist-dot.global{background:#FF7800;}.dist-dot.aguda{background:#B400FF;}.dist-dot.riesgo,.dist-dot.mod{background:#F5AD21;}.dist-dot.sin{background:#a0a8b0;}
+  .dist-dot.sev,.dist-dot.cronica{background:#FF376F;}.dist-dot.global{background:#FF7800;}.dist-dot.aguda{background:#B400FF;}.dist-dot.riesgo,.dist-dot.mod{background:#F5AD21;}.dist-dot.adecuado{background:#18AE97;}.dist-dot.sin{background:#a0a8b0;}
   .dist-item-val{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;}
   .dist-item-val span{font-weight:500;color:var(--text-muted);font-size:13px;}
   .dist-track{height:12px;background:#eef1f4;border-radius:8px;overflow:hidden;}
   .dist-fill{height:100%;border-radius:8px;transition:width 0.6s cubic-bezier(0.4,0,0.2,1);min-width:0;}
-  .dist-fill.sev,.dist-fill.cronica{background:var(--grad-e);}.dist-fill.global{background:linear-gradient(135deg,#FF7800,#FFB347);}.dist-fill.aguda{background:linear-gradient(135deg,#B400FF,#D87BFF);}.dist-fill.riesgo,.dist-fill.mod{background:var(--grad-d);}.dist-fill.sin{background:linear-gradient(135deg,#b8c0c8,#9aa6b0);}
+  .dist-fill.sev,.dist-fill.cronica{background:var(--grad-e);}.dist-fill.global{background:linear-gradient(135deg,#FF7800,#FFB347);}.dist-fill.aguda{background:linear-gradient(135deg,#B400FF,#D87BFF);}.dist-fill.riesgo,.dist-fill.mod{background:var(--grad-d);}.dist-fill.adecuado{background:var(--grad-c);}.dist-fill.sin{background:linear-gradient(135deg,#b8c0c8,#9aa6b0);}
   @media(max-width:768px){.dist-panel{padding:20px 18px;border-radius:20px;}.dist-title{font-size:16px;}}
 
   /* ── SEARCH / FILTERS ── */
@@ -505,10 +505,6 @@
               <div class="curve-head"><div class="curve-title">Peso / Edad</div><button class="curve-dl" onclick="descargarCurva('curve-peso','Peso-Edad')" title="Descargar imagen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button></div>
               <div class="curve-canvas-box"><canvas id="curve-peso"></canvas></div>
             </div>
-            <div class="curve-wrap">
-              <div class="curve-head"><div class="curve-title">Peso / Talla</div><button class="curve-dl" onclick="descargarCurva('curve-pesotalla','Peso-Talla')" title="Descargar imagen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button></div>
-              <div class="curve-canvas-box"><canvas id="curve-pesotalla"></canvas></div>
-            </div>
           </div>
 
           <div class="hist-section">
@@ -753,13 +749,6 @@ function calcZpt(peso, talla, edadMeses, sexo){
   let z = Math.abs(L)<1e-4 ? Math.log(peso/M)/S : (Math.pow(peso/M,L)-1)/(L*S);
   return Math.round(z*100)/100;
 }
-function valFromZpt(z, talla, tabla, sexo){
-  const t=String(Math.round(talla*2)/2);
-  const ref = tabla[sexo] && tabla[sexo][t]; if(!ref) return null;
-  const [L,M,S]=ref;
-  return Math.abs(L)<1e-4 ? M*Math.exp(S*z) : M*Math.pow(1+L*S*z,1/L);
-}
-
 function calcZ(valor, mes, sexo, tabla){
   mes = Math.round(mes);
   if(mes<0||mes>60||!tabla[sexo]) return null;
@@ -924,11 +913,12 @@ function renderAlertas(){
   document.getElementById('dist-total').textContent = all.length+(all.length===1?' infante':' infantes');
   const pct = n => Math.round(n/total*100);
   const barras = [
-    {cls:'sev',    label:'Desnutrición crónica',  n:cronica.length},
-    {cls:'global', label:'Desnutrición global',   n:global_.length},
-    {cls:'aguda',  label:'Desnutrición aguda',    n:aguda.length},
-    {cls:'riesgo', label:'En riesgo',             n:riesgo.length},
-    {cls:'sin',    label:'Sin medición reciente', n:sin.length}
+    {cls:'sev',      label:'Desnutrición crónica',  n:cronica.length},
+    {cls:'global',   label:'Desnutrición global',   n:global_.length},
+    {cls:'aguda',    label:'Desnutrición aguda',    n:aguda.length},
+    {cls:'riesgo',   label:'En riesgo',             n:riesgo.length},
+    {cls:'adecuado', label:'Adecuado',              n:adecuado.length},
+    {cls:'sin',      label:'Sin medición reciente', n:sin.length}
   ];
   document.getElementById('dist-bars').innerHTML = barras.map(b=>`
     <div class="dist-item">
@@ -1116,43 +1106,6 @@ async function drawCurves(){
   const ms=medicionesDe(n.ID_Niño).map(normalizarMedicion);
   buildCurve('curve-talla', LMS_TALLA, sexo, ms.map(m=>({x:m._edad,y:m._talla})), 'cm');
   buildCurve('curve-peso', LMS_PESO, sexo, ms.map(m=>({x:m._edad,y:m._peso})), 'kg');
-  const edadRef = ms.length ? ms[ms.length-1]._edad : null;
-  buildCurvePT('curve-pesotalla', sexo, ms.map(m=>({x:m._talla,y:m._peso})), edadRef);
-}
-// Curva peso-para-talla/longitud: eje X = talla (cm), eje Y = peso (kg)
-function buildCurvePT(canvasId, sexo, puntos, edadRef){
-  if(charts[canvasId]) charts[canvasId].destroy();
-  const ctx=document.getElementById(canvasId); if(!ctx) return;
-  const usarWFL = (edadRef==null) ? true : edadRef<24;
-  const tabla = usarWFL ? LMS_WFL : LMS_WFH;
-  if(!tabla[sexo]) return;
-  const lengths = Object.keys(tabla[sexo]).map(parseFloat).sort((a,b)=>a-b);
-  const lineZ=(z)=>lengths.map(len=>{const v=valFromZpt(z,len,tabla,sexo);return {x:len,y:v==null?null:Math.round(v*10)/10};});
-  const ref=(label,z,color,dash)=>({label,data:lineZ(z),borderColor:color,borderWidth:1.5,borderDash:dash,pointRadius:0,fill:false,tension:0.4});
-  const xs=puntos.map(p=>p.x).filter(v=>!isNaN(v));
-  const lo=usarWFL?45:65, hi=usarWFL?110:120;
-  const xmin = xs.length?Math.max(lo, Math.floor(Math.min(...xs)-4)):lo;
-  const xmax = xs.length?Math.min(hi, Math.ceil(Math.max(...xs)+4)):(usarWFL?100:110);
-  charts[canvasId]=new Chart(ctx,{
-    type:'line',
-    data:{datasets:[
-      ref('Mediana',0,'#33A8DE',[]),
-      ref('-2 DE',-2,'#F5AD21',[6,4]),
-      ref('-3 DE',-3,'#FF376F',[3,3]),
-      ref('+2 DE',2,'#86d2da',[6,4]),
-      {label:n_label(),data:puntos.filter(p=>!isNaN(p.x)&&!isNaN(p.y)),borderColor:'#18AE97',backgroundColor:'#18AE97',borderWidth:3,pointRadius:5,pointHoverRadius:7,pointBackgroundColor:'#fff',pointBorderColor:'#18AE97',pointBorderWidth:2.5,fill:false,tension:0.2}
-    ]},
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      interaction:{mode:'nearest',intersect:false},
-      plugins:{legend:{display:true,position:'bottom',labels:{boxWidth:18,font:{family:'Outfit',size:11},usePointStyle:true,padding:12}},
-        tooltip:{callbacks:{title:(it)=>'Talla: '+it[0].parsed.x+' cm',label:(it)=>it.dataset.label+': '+it.parsed.y+' kg'}}},
-      scales:{
-        x:{type:'linear',min:xmin,max:xmax,title:{display:true,text:'Talla / Longitud (cm)',font:{family:'Outfit',size:11}},ticks:{font:{family:'Outfit',size:10}}},
-        y:{title:{display:true,text:'Peso (kg)',font:{family:'Outfit',size:11}},ticks:{font:{family:'Outfit',size:10}}}
-      }
-    }
-  });
 }
 // descarga el gráfico como PNG con fondo blanco
 function descargarCurva(canvasId, etiqueta){

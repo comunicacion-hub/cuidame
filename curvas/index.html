@@ -799,7 +799,7 @@ async function reloadAll(){
   const btn=document.getElementById('btn-sync'); btn&&btn.classList.add('syncing');
   try{
     const [ns,ms,cs]=await Promise.all([
-      db.collection('Ninos').get(),
+      db.collection('Niños').get(),
       db.collection('Mediciones').get(),
       db.collection('Comunidades').get()
     ]);
@@ -1148,7 +1148,7 @@ function desactivarInfante(id){
   const n=ninos.find(x=>x.ID_Niño===id); if(!n) return;
   askConfirm('¿Desactivar infante?','"'+n.Nombres+'" dejará de aparecer en la lista, pero sus datos y mediciones se conservan. Podrás reactivarlo desde la base.',async()=>{
     try{
-      await db.collection('Ninos').doc(n._id||id).update({Activo:false});
+      await db.collection('Niños').doc(n._id||id).update({Activo:false});
       const idx=ninos.findIndex(x=>x.ID_Niño===id); if(idx>=0) ninos[idx].Activo=false;
       saveCache(); toast('Infante desactivado'); renderAll();
     }catch(e){console.error(e);toast('No se pudo desactivar: '+(e.message||'error'),true);}
@@ -1167,13 +1167,13 @@ async function saveInfante(){
   try{
     if(editingInfante){
       const n=ninos.find(x=>x.ID_Niño===editingInfante); const docId=(n&&n._id)||editingInfante;
-      await db.collection('Ninos').doc(docId).set({...datos, ID_Niño:editingInfante},{merge:true});
+      await db.collection('Niños').doc(docId).set({...datos, ID_Niño:editingInfante},{merge:true});
       const idx=ninos.findIndex(x=>x.ID_Niño===editingInfante);
       if(idx>=0) ninos[idx]={...ninos[idx],...datos};
       toast('Infante actualizado');
     }else{
       const newId=nextId('N',ninos,'ID_Niño');
-      await db.collection('Ninos').doc(newId).set({ID_Niño:newId, ...datos, Activo:true});
+      await db.collection('Niños').doc(newId).set({ID_Niño:newId, ...datos, Activo:true});
       ninos.push({_id:newId, ID_Niño:newId, ...datos, Activo:true});
       toast('Infante registrado');
     }

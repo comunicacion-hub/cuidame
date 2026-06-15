@@ -452,9 +452,6 @@
         </div>
         <div class="dist-bars" id="dist-bars"></div>
       </div>
-
-      <div style="font-size:18px;font-weight:700;color:var(--text);margin-top:4px;">Requieren atención</div>
-      <div id="alertas-list"><div class="spinner"></div></div>
     </div>
 
     <!-- ─── FICHAS ─── -->
@@ -929,6 +926,8 @@ function renderAlertas(){
   if(totalAlert>0){nb.style.display='inline-flex';nb.textContent=totalAlert;}else{nb.style.display='none';}
 
   // lista de alertas (excluye adecuados)
+  const cont=document.getElementById('alertas-list');
+  if(!cont) return; // la sección "Requieren atención" fue removida; solo se muestran las barras
   let lista = estados.filter(e=>e.estado!=='adecuado' && e.estado!=='normal');
   const f=activeFilters.alertas;
   if(f.comunidad.length) lista=lista.filter(e=>f.comunidad.includes(e.n.Comunidad));
@@ -936,7 +935,6 @@ function renderAlertas(){
   const ord={cronica:0,global:1,riesgo:2,sin:3};
   lista.sort((a,b)=>(ord[a.estado]??9)-(ord[b.estado]??9));
 
-  const cont=document.getElementById('alertas-list');
   if(!lista.length){cont.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">Sin alertas</div><div class="empty-sub">Todos los infantes están en estado adecuado.</div></div>';cont.className='';return;}
   cont.className='alert-grid';
 
@@ -1102,26 +1100,77 @@ async function drawCurves(){
   await ensureChart();
   const n=currentFicha, sexo=n.Sexo;
   const ms=medicionesDe(n.ID_Niño).map(normalizarMedicion);
-  buildCurve('curve-talla', LMS_TALLA, sexo, ms.map(m=>({x:m._edad,y:m._talla})), 'cm');
-  buildCurve('curve-peso', LMS_PESO, sexo, ms.map(m=>({x:m._edad,y:m._peso})), 'kg');
+  buildCurve('curve-talla', LMS_TALLA, sexo, ms.map(m=>({x:m._edad,y:m._talla,fecha:m.Fecha})), 'cm');
+  buildCurve('curve-peso', LMS_PESO, sexo, ms.map(m=>({x:m._edad,y:m._peso,fecha:m.Fecha})), 'kg');
 }
-// descarga el gráfico como PNG con fondo blanco
+// descarga el gráfico como PNG con fondo blanco, título arriba y fechas verticales en cada punto
 function descargarCurva(canvasId, etiqueta){
   const ch=charts[canvasId];
   if(!ch){toast('La curva aún no está lista',true);return;}
   try{
     const src=ch.canvas;
+    const margenTop=44;   // espacio extra arriba para el título
     const tmp=document.createElement('canvas');
-    tmp.width=src.width; tmp.height=src.height;
+    tmp.width=src.width;
+    tmp.height=src.height+margenTop;
     const ctx=tmp.getContext('2d');
+    // fondo blanco
     ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,tmp.width,tmp.height);
-    ctx.drawImage(src,0,0);
+
+    // ── Título de la tabla (arriba) ──
+    const titulo=ch._tituloTabla||'';
+    const nombreNino=(currentFicha&&currentFicha.Nombres)?currentFicha.Nombres:'';
+    ctx.fillStyle='#0b7285';
+    ctx.font='bold 20px Outfit, sans-serif';
+    ctx.textAlign='left';
+    ctx.fillText(titulo, 16, 28);
+    // nombre del niño a la derecha
+    if(nombreNino){
+      ctx.fillStyle='#666';
+      ctx.font='13px Outfit, sans-serif';
+      ctx.textAlign='right';
+      ctx.fillText(nombreNino, tmp.width-16, 26);
+    }
+
+    // ── Gráfico (debajo del título) ──
+    ctx.drawImage(src,0,margenTop);
+
+    // ── Fechas en vertical junto a cada punto del niño ──
+    const pts=ch._puntosFecha||[];
+    const xScale=ch.scales.x, yScale=ch.scales.y;
+    if(pts.length && xScale && yScale){
+      ctx.fillStyle='#1a5276';
+      ctx.font='11px Outfit, sans-serif';
+      pts.forEach(p=>{
+        if(!p.fecha) return;
+        const px=xScale.getPixelForValue(p.x);
+        const py=yScale.getPixelForValue(p.y)+margenTop;
+        const txt=fmtFechaCorta(p.fecha);
+        // dibujar texto rotado 90° (vertical), un poco arriba-derecha del punto
+        ctx.save();
+        ctx.translate(px+4, py-8);
+        ctx.rotate(-Math.PI/2);   // vertical, leyendo de abajo hacia arriba
+        ctx.textAlign='left';
+        ctx.fillText(txt, 0, 0);
+        ctx.restore();
+      });
+    }
+
     const nombre=(currentFicha&&currentFicha.Nombres?currentFicha.Nombres.replace(/\s+/g,'_'):'infante');
     const a=document.createElement('a');
     a.href=tmp.toDataURL('image/png');
     a.download=`${etiqueta}_${nombre}.png`;
     a.click();
   }catch(e){toast('No se pudo descargar',true);}
+}
+// fecha corta dd/mm/yy para las etiquetas del PNG
+function fmtFechaCorta(f){
+  const d=parseFechaLocal(f);
+  if(!d||isNaN(d)) return '';
+  const dd=String(d.getDate()).padStart(2,'0');
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const yy=String(d.getFullYear()).slice(-2);
+  return `${dd}/${mm}/${yy}`;
 }
 function buildCurve(canvasId, tabla, sexo, puntos, unidad){
   if(charts[canvasId]) charts[canvasId].destroy();
@@ -1135,6 +1184,9 @@ function buildCurve(canvasId, tabla, sexo, puntos, unidad){
   const meses=[]; for(let m=0;m<=topMes;m++){ if(tabla[sexo][m]) meses.push(m); }
   const lineZ=(z)=>meses.map(m=>({x:m,y:Math.round(valFromZ(z,m,sexo,tabla)*10)/10}));
   const ref=(label,z,color,dash)=>({label,data:lineZ(z),borderColor:color,borderWidth:1.5,borderDash:dash,pointRadius:0,fill:false,tension:0.4});
+  // título de la tabla según el indicador y sexo
+  const sexoTxt = sexo==='F' ? 'niñas' : 'niños';
+  const tituloTabla = (unidad==='cm' ? 'Longitud/estatura para la edad de ' : 'Peso para la edad de ') + sexoTxt;
   charts[canvasId]=new Chart(ctx,{
     type:'line',
     data:{datasets:[
@@ -1155,6 +1207,9 @@ function buildCurve(canvasId, tabla, sexo, puntos, unidad){
       }
     }
   });
+  // guardar datos para la descarga (fechas en vertical + título)
+  charts[canvasId]._puntosFecha = puntos.filter(p=>!isNaN(p.x)&&!isNaN(p.y));
+  charts[canvasId]._tituloTabla = tituloTabla;
 }
 function n_label(){return currentFicha?currentFicha.Nombres.split(' ')[0]:'Infante';}
 

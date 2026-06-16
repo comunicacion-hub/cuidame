@@ -150,16 +150,24 @@ window.onload=()=>{
 
 function onCredential(resp){
   currentToken=resp.credential;
-  // extraer email del JWT
   const payload=JSON.parse(atob(resp.credential.split('.')[1]));
   if(!payload.hd || payload.hd!==DOMAIN){
     alert('Debes usar una cuenta de '+DOMAIN);
     return;
   }
-  document.getElementById('user-email').textContent=payload.email;
-  document.getElementById('user-info').classList.remove('hidden');
-  document.getElementById('g-btn').style.display='none';
-  log('info','Sesión iniciada como '+payload.email);
+  // Autenticar en Firebase Auth con el token de Google
+  const credential=firebase.auth.GoogleAuthProvider.credential(resp.credential);
+  auth.signInWithCredential(credential)
+    .then(()=>{
+      document.getElementById('user-email').textContent=payload.email;
+      document.getElementById('user-info').classList.remove('hidden');
+      document.getElementById('g-btn').style.display='none';
+      log('info','Sesión iniciada como '+payload.email);
+    })
+    .catch(e=>{
+      alert('Error al autenticar en Firebase: '+e.message);
+      currentToken=null;
+    });
 }
 
 // ── Leer Excel ──

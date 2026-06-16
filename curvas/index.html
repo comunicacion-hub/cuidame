@@ -1103,53 +1103,59 @@ async function drawCurves(){
   buildCurve('curve-talla', LMS_TALLA, sexo, ms.map(m=>({x:m._edad,y:m._talla,fecha:m.Fecha})), 'cm');
   buildCurve('curve-peso', LMS_PESO, sexo, ms.map(m=>({x:m._edad,y:m._peso,fecha:m.Fecha})), 'kg');
 }
-// descarga el gráfico como PNG con fondo blanco, título arriba y fechas verticales en cada punto
+// descarga el gráfico como PNG en alta resolución (3x, calidad de impresión).
+// Redibuja el chart nítido a esa resolución (no reescala), añade título y fechas verticales.
 function descargarCurva(canvasId, etiqueta){
   const ch=charts[canvasId];
   if(!ch){toast('La curva aún no está lista',true);return;}
+  const CAL=3; // factor de resolución (≈2100px de ancho → supera HD, >300 DPI impreso)
+  const ratioPrev = ch.options.devicePixelRatio;
+  const animPrev = ch.options.animation;
   try{
-    const src=ch.canvas;
-    // factor de escala real del canvas (pantallas retina dibujan a 2x o más).
-    // getPixelForValue devuelve px CSS; el canvas real mide ancho_CSS * ratio.
-    const ratio = src.width / src.clientWidth || window.devicePixelRatio || 1;
-    const margenTop = Math.round(46 * ratio);   // espacio arriba para el título
+    // 1) Forzar al chart a redibujarse nítido a 3x, SIN animación (listo al instante)
+    ch.options.animation = false;
+    ch.options.devicePixelRatio = CAL;
+    ch.resize();        // recalcula el canvas a la nueva densidad de píxeles
+    ch.render();        // redibuja líneas y texto nítidos a 3x (no estirados)
+
+    const src=ch.canvas;          // ahora su buffer real es ~3x
+    const cssW=src.clientWidth, cssH=src.clientHeight; // tamaño visible (px CSS)
+    const margenTop=Math.round(46*CAL);
+
     const tmp=document.createElement('canvas');
-    tmp.width=src.width;
-    tmp.height=src.height+margenTop;
+    tmp.width = Math.round(cssW*CAL);
+    tmp.height = Math.round(cssH*CAL)+margenTop;
     const ctx=tmp.getContext('2d');
-    // fondo blanco
+    ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
     ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,tmp.width,tmp.height);
 
-    // ── Título de la tabla (arriba, escalado al ratio) ──
-    const titulo=ch._tituloTabla||'';
+    // ── Título (texto fresco, nítido) ──
     ctx.fillStyle='#0b7285';
-    ctx.font=`bold ${Math.round(19*ratio)}px Outfit, sans-serif`;
-    ctx.textAlign='left';
-    ctx.textBaseline='middle';
-    ctx.fillText(titulo, 16*ratio, margenTop/2);
+    ctx.font=`bold ${Math.round(19*CAL)}px Outfit, sans-serif`;
+    ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText(ch._tituloTabla||'', 16*CAL, margenTop/2);
 
-    // ── Gráfico (debajo del título) ──
-    ctx.drawImage(src,0,margenTop);
+    // ── Gráfico nítido (copiado 1:1 desde el buffer 3x) ──
+    ctx.drawImage(src, 0, 0, src.width, src.height,
+                       0, margenTop, tmp.width, tmp.height-margenTop);
 
-    // ── Fechas en vertical junto a cada punto del niño ──
+    // ── Fechas verticales sobre cada punto ──
     const pts=ch._puntosFecha||[];
     const xScale=ch.scales.x, yScale=ch.scales.y;
     if(pts.length && xScale && yScale){
       ctx.fillStyle='#1a5276';
-      ctx.font=`${Math.round(11*ratio)}px Outfit, sans-serif`;
+      ctx.font=`bold ${Math.round(10.5*CAL)}px Outfit, sans-serif`;
       ctx.textBaseline='alphabetic';
       pts.forEach(p=>{
         if(!p.fecha) return;
-        // coordenadas en px CSS → multiplicar por ratio para el canvas real
-        const px=xScale.getPixelForValue(p.x)*ratio;
-        const py=yScale.getPixelForValue(p.y)*ratio + margenTop;
-        const txt=fmtFechaCorta(p.fecha);
-        // texto vertical, justo encima del punto
+        // getPixelForValue da px CSS → escalar por CAL
+        const px=xScale.getPixelForValue(p.x)*CAL;
+        const py=yScale.getPixelForValue(p.y)*CAL + margenTop;
         ctx.save();
-        ctx.translate(px, py - 12*ratio);
-        ctx.rotate(-Math.PI/2);   // vertical, de abajo hacia arriba
+        ctx.translate(px, py - 12*CAL);
+        ctx.rotate(-Math.PI/2);
         ctx.textAlign='left';
-        ctx.fillText(txt, 0, 4*ratio);
+        ctx.fillText(fmtFechaCorta(p.fecha), 0, 4*CAL);
         ctx.restore();
       });
     }
@@ -1159,7 +1165,15 @@ function descargarCurva(canvasId, etiqueta){
     a.href=tmp.toDataURL('image/png');
     a.download=`${etiqueta}_${nombre}.png`;
     a.click();
-  }catch(e){toast('No se pudo descargar',true);}
+  }catch(e){
+    toast('No se pudo descargar',true);
+  }finally{
+    // 2) Restaurar el chart a su resolución normal (pantalla)
+    ch.options.devicePixelRatio = ratioPrev;
+    ch.options.animation = animPrev;
+    ch.resize();
+    ch.render();
+  }
 }
 // fecha corta dd/mm/yy para las etiquetas del PNG
 function fmtFechaCorta(f){
